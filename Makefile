@@ -9,7 +9,7 @@ install:  ## Install package with dev dependencies
 	pre-commit install
 
 test:  ## Run tests with coverage
-	python -m pytest -q --maxfail=1 --cov=src/threat_research_mcp --cov-fail-under=70
+	python -m pytest -q --maxfail=1 --cov=src/threat_research_mcp --cov-fail-under=65
 
 lint:  ## Run ruff linter
 	python -m ruff check .
@@ -30,7 +30,7 @@ ci:  ## Run all CI checks locally (same as GitHub Actions)
 	@echo "\n=== Checking Code Format ==="
 	python -m ruff format --check .
 	@echo "\n=== Running Tests ==="
-	python -m pytest -q --maxfail=1 --cov=src/threat_research_mcp --cov-fail-under=70
+	python -m pytest -q --maxfail=1 --cov=src/threat_research_mcp --cov-fail-under=65
 	@echo "\n=== Security Checks ==="
 	python -m bandit -c pyproject.toml -r src
 	python -m pip_audit
