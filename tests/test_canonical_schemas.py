@@ -39,13 +39,13 @@ def test_analysis_product_roundtrip_json() -> None:
                         HuntQueryArtifact(
                             language="kql",
                             title="DeviceProcessEvents sample",
-                            body="DeviceProcessEvents | where ProcessCommandLine has \"-enc\"",
+                            body='DeviceProcessEvents | where ProcessCommandLine has "-enc"',
                             log_source_hints=["DeviceProcessEvents"],
                         ),
                         HuntQueryArtifact(
                             language="spl",
                             title="Process with encoded command",
-                            body="index=windows EventCode=4688 \"-enc\"",
+                            body='index=windows EventCode=4688 "-enc"',
                             log_source_hints=["Windows Security 4688"],
                         ),
                     ],

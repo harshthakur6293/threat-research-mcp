@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from threat_research_mcp.tools.extract_iocs import extract_iocs_json
-from threat_research_mcp.tools.ingest_tools import ingest_from_config_path_json, intel_to_analysis_product_json
+from threat_research_mcp.tools.ingest_tools import (
+    ingest_from_config_path_json,
+    intel_to_analysis_product_json,
+)
 from threat_research_mcp.tools.summarize_threat_report import summarize_threat_report
 from threat_research_mcp.tools.map_attack import map_attack
 from threat_research_mcp.tools.generate_sigma import generate_sigma

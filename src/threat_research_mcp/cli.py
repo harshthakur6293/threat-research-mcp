@@ -24,9 +24,7 @@ def main() -> None:
             text=args.text,
             sources_config_path=args.sources.strip(),
         )
-        payload = json.loads(
-            run_workflow(args.workflow, combined, provenance_documents=docs)
-        )
+        payload = json.loads(run_workflow(args.workflow, combined, provenance_documents=docs))
         print(json.dumps(payload, indent=2))
     else:
         print(run_workflow(args.workflow, args.text))

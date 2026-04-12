@@ -41,3 +41,7 @@ pythonpath = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.bandit]
+exclude_dirs = ["tests", "examples"]
+skips = ["B310", "B314", "B405", "B608"]

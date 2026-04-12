@@ -48,8 +48,8 @@ def build_kql_process_draft(behavior_snippet: str, technique_ids: List[str]) -> 
         "// Draft KQL — tune table/column names to your workspace (DeviceProcessEvents / SecurityEvent).\n"
         "DeviceProcessEvents\n"
         "| where TimeGenerated > ago(7d)\n"
-        f"| where ProcessCommandLine has \"{frag}\" or InitiatingProcessCommandLine has \"{frag}\"\n"
-        f"| extend MitreTechniqueHint = \"{tech_esc}\"\n"
+        f'| where ProcessCommandLine has "{frag}" or InitiatingProcessCommandLine has "{frag}"\n'
+        f'| extend MitreTechniqueHint = "{tech_esc}"\n'
         "| project TimeGenerated, DeviceName, AccountName, FolderPath, FileName, ProcessCommandLine, InitiatingProcessFileName, MitreTechniqueHint\n"
         "| take 500\n"
     )
@@ -68,8 +68,8 @@ def build_spl_process_draft(behavior_snippet: str, technique_ids: List[str]) -> 
         "// Draft SPL — align index/sourcetype with your deployment (Sysmon EventCode=1 or Windows Security 4688).\n"
         "index=windows ((sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1) OR "
         "(sourcetype=WinEventLog:Security EventCode=4688))\n"
-        f"| search process=\"*{frag_spl}*\" OR process=\"*powershell*\"\n"
-        f"| eval threat_research_mcp_techniques=\"{tech_comment}\"\n"
+        f'| search process="*{frag_spl}*" OR process="*powershell*"\n'
+        f'| eval threat_research_mcp_techniques="{tech_comment}"\n'
         "| head 500\n"
     )
 

@@ -6,8 +6,15 @@ import json
 from typing import Any, Dict, List, Optional
 
 from threat_research_mcp.schemas.analysis_product import AnalysisProduct, IntelProvenance
-from threat_research_mcp.schemas.detection_delivery import DetectionDeliveryBundle, DetectionRuleArtifact
-from threat_research_mcp.schemas.hunt_delivery import HuntDeliveryPack, HuntOpportunity, HuntQueryArtifact
+from threat_research_mcp.schemas.detection_delivery import (
+    DetectionDeliveryBundle,
+    DetectionRuleArtifact,
+)
+from threat_research_mcp.schemas.hunt_delivery import (
+    HuntDeliveryPack,
+    HuntOpportunity,
+    HuntQueryArtifact,
+)
 from threat_research_mcp.schemas.ioc_objects import (
     IocDomain,
     IocEmail,
@@ -141,7 +148,9 @@ def _hunt_pack_from_hunting(hunting: Dict[str, Any], input_text: str) -> HuntDel
     return HuntDeliveryPack(opportunities=opportunities, summary=summary)
 
 
-def _detection_bundle_from_detection(detection: Dict[str, Any], input_text: str) -> DetectionDeliveryBundle:
+def _detection_bundle_from_detection(
+    detection: Dict[str, Any], input_text: str
+) -> DetectionDeliveryBundle:
     rules: List[DetectionRuleArtifact] = []
     if not detection:
         return DetectionDeliveryBundle()

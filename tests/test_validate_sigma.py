@@ -9,6 +9,8 @@ def test_generated_sigma_passes_validator() -> None:
 
 
 def test_validate_sigma_catches_missing_detection() -> None:
-    ok, errs = validate_sigma_yaml("title: x\nlogsource:\n  category: process_creation\n  product: windows\n")
+    ok, errs = validate_sigma_yaml(
+        "title: x\nlogsource:\n  category: process_creation\n  product: windows\n"
+    )
     assert not ok
     assert any("detection" in e.lower() for e in errs)

@@ -35,7 +35,9 @@ def list_taxii_collections(api_root: str, cfg: SourceConfig) -> List[Dict[str, A
     return [c for c in cols if isinstance(c, dict)]
 
 
-def fetch_taxii_objects(api_root: str, collection_id: str, cfg: SourceConfig) -> List[Dict[str, Any]]:
+def fetch_taxii_objects(
+    api_root: str, collection_id: str, cfg: SourceConfig
+) -> List[Dict[str, Any]]:
     root = _api_root_url(api_root)
     cid = collection_id.strip().strip("/")
     url = f"{root}collections/{cid}/objects/"
@@ -80,7 +82,9 @@ class TaxiiAdapter(IntelAdapter):
         if not collection_id:
             cols = list_taxii_collections(cfg.api_root, cfg)
             if not cols:
-                raise IngestionError("No TAXII collections returned; check api_root and credentials")
+                raise IngestionError(
+                    "No TAXII collections returned; check api_root and credentials"
+                )
             if len(cols) == 1:
                 cid = cols[0].get("id")
                 if not isinstance(cid, str) or not cid:

@@ -73,9 +73,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ap_product_id ON analysis_products(product_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ap_created ON analysis_products(created_at)")
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_ap_workflow ON analysis_products(workflow_type)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ap_workflow ON analysis_products(workflow_type)")
     conn.commit()
 
 
@@ -89,7 +87,9 @@ def save_workflow_run(
     input_preview_max: int = 4000,
 ) -> None:
     """Persist one CLI/MCP workflow result as JSON. No-op callers validate path."""
-    preview = input_text if len(input_text) <= input_preview_max else input_text[:input_preview_max] + "…"
+    preview = (
+        input_text if len(input_text) <= input_preview_max else input_text[:input_preview_max] + "…"
+    )
     payload = json.dumps(output_payload, ensure_ascii=False)
     conn = _connect(db_path)
     try:
@@ -195,9 +195,7 @@ def search_normalized_documents(
         else:
             if text_query.strip():
                 pat = _like_pattern(text_query.strip())
-                clauses.append(
-                    "(title LIKE ? ESCAPE '\\' OR normalized_text LIKE ? ESCAPE '\\')"
-                )
+                clauses.append("(title LIKE ? ESCAPE '\\' OR normalized_text LIKE ? ESCAPE '\\')")
                 params.extend([pat, pat])
             if source_name.strip():
                 clauses.append("source_name LIKE ? ESCAPE '\\'")
@@ -266,9 +264,7 @@ def search_analysis_products(
         conn.close()
 
 
-def get_analysis_product_by_row_id(
-    db_path: PathLike, row_id: int
-) -> Optional[Dict[str, Any]]:
+def get_analysis_product_by_row_id(db_path: PathLike, row_id: int) -> Optional[Dict[str, Any]]:
     """Fetch full product JSON for one stored row."""
     conn = _connect(db_path)
     try:

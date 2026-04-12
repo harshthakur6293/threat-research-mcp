@@ -50,12 +50,16 @@ def http_get_bytes(
         raise IngestionError(f"URL error for {url}: {e.reason}") from e
 
 
-def http_get_text(url: str, *, cfg: Optional[SourceConfig] = None, headers: Optional[Dict[str, str]] = None) -> str:
+def http_get_text(
+    url: str, *, cfg: Optional[SourceConfig] = None, headers: Optional[Dict[str, str]] = None
+) -> str:
     raw = http_get_bytes(url, cfg=cfg, headers=headers)
     return raw.decode("utf-8", errors="replace")
 
 
-def http_get_json(url: str, *, cfg: Optional[SourceConfig] = None, headers: Optional[Dict[str, str]] = None) -> Any:
+def http_get_json(
+    url: str, *, cfg: Optional[SourceConfig] = None, headers: Optional[Dict[str, str]] = None
+) -> Any:
     text = http_get_text(url, cfg=cfg, headers=headers)
     try:
         return json.loads(text)

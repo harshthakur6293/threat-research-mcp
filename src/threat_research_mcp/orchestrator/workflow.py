@@ -59,7 +59,8 @@ def run_workflow(
     state.research = run_research(text)
     state.hunting = (
         run_hunting(text)
-        if routed in {"hunt_generation", "timeline_reconstruction", "log_explanation", "coverage_analysis"}
+        if routed
+        in {"hunt_generation", "timeline_reconstruction", "log_explanation", "coverage_analysis"}
         else {}
     )
     state.detection = (

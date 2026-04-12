@@ -19,6 +19,7 @@ class SourceConfig(BaseModel):
     @classmethod
     def normalize_type(cls, v: str) -> str:
         return (v or "").strip().lower()
+
     path: Optional[str] = None
     url: Optional[str] = None
     api_root: Optional[str] = None

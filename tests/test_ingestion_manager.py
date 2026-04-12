@@ -24,9 +24,7 @@ def test_unknown_adapter() -> None:
 def test_local_file_ingest(tmp_path: Path) -> None:
     f = tmp_path / "note.txt"
     f.write_text("Suspicious powershell -enc observed.", encoding="utf-8")
-    sources = sources_from_dict(
-        {"sources": [{"name": "t", "type": "local_file", "path": str(f)}]}
-    )
+    sources = sources_from_dict({"sources": [{"name": "t", "type": "local_file", "path": str(f)}]})
     docs = IngestionManager(sources).run()
     assert len(docs) == 1
     assert "powershell" in docs[0].normalized_text.lower()
@@ -48,9 +46,7 @@ def test_local_stix_json(tmp_path: Path) -> None:
     }
     p = tmp_path / "b.json"
     p.write_text(json.dumps(bundle), encoding="utf-8")
-    sources = sources_from_dict(
-        {"sources": [{"name": "s", "type": "local_file", "path": str(p)}]}
-    )
+    sources = sources_from_dict({"sources": [{"name": "s", "type": "local_file", "path": str(p)}]})
     docs = IngestionManager(sources).run()
     assert len(docs) >= 1
     assert any("BadX" in d.title or "BadX" in d.normalized_text for d in docs)
@@ -58,10 +54,10 @@ def test_local_stix_json(tmp_path: Path) -> None:
 
 def test_html_path_ingest(tmp_path: Path) -> None:
     h = tmp_path / "r.html"
-    h.write_text("<html><head><title>T</title></head><body><p>Body</p></body></html>", encoding="utf-8")
-    sources = sources_from_dict(
-        {"sources": [{"name": "h", "type": "html_report", "path": str(h)}]}
+    h.write_text(
+        "<html><head><title>T</title></head><body><p>Body</p></body></html>", encoding="utf-8"
     )
+    sources = sources_from_dict({"sources": [{"name": "h", "type": "html_report", "path": str(h)}]})
     docs = IngestionManager(sources).run()
     assert len(docs) == 1
     assert "Body" in docs[0].normalized_text
@@ -70,7 +66,9 @@ def test_html_path_ingest(tmp_path: Path) -> None:
 def test_load_sources_json(tmp_path: Path) -> None:
     cfg = tmp_path / "s.json"
     cfg.write_text(
-        json.dumps({"sources": [{"name": "x", "type": "local_file", "path": str(tmp_path / "nope")}]}),
+        json.dumps(
+            {"sources": [{"name": "x", "type": "local_file", "path": str(tmp_path / "nope")}]}
+        ),
         encoding="utf-8",
     )
     sources = load_sources_json(cfg)

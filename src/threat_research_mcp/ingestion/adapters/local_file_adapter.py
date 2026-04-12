@@ -8,7 +8,11 @@ from typing import List
 
 from threat_research_mcp.ingestion.base import IntelAdapter
 from threat_research_mcp.ingestion.errors import IngestionError
-from threat_research_mcp.ingestion.parser import parse_html_to_text, parse_html_title, parse_stix_bundle_json
+from threat_research_mcp.ingestion.parser import (
+    parse_html_to_text,
+    parse_html_title,
+    parse_stix_bundle_json,
+)
 from threat_research_mcp.schemas.intel_document import RawDocument, SourceConfig
 
 
@@ -35,7 +39,9 @@ class LocalFileAdapter(IntelAdapter):
         files: List[Path]
         if base.is_dir():
             files = sorted(
-                p for p in base.iterdir() if p.is_file() and fnmatch.fnmatch(p.name.lower(), cfg.pattern.lower())
+                p
+                for p in base.iterdir()
+                if p.is_file() and fnmatch.fnmatch(p.name.lower(), cfg.pattern.lower())
             )
         else:
             files = [base]

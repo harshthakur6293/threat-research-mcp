@@ -8,4 +8,6 @@ MAPPING = {
 
 
 def map_data_sources(technique_id: str) -> str:
-    return json.dumps({"technique_id": technique_id, "data_sources": MAPPING.get(technique_id, [])}, indent=2)
+    return json.dumps(
+        {"technique_id": technique_id, "data_sources": MAPPING.get(technique_id, [])}, indent=2
+    )
