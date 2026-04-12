@@ -1,0 +1,46 @@
+# Example ingestion sources (load with threat_research_mcp.ingestion.load_sources_yaml).
+#
+# Supported types:
+#   local_file  — path to file or directory; optional pattern (glob, default "*")
+#   rss, rss_atom — feed URL
+#   html_report, html — url OR path (only one)
+#   stix_bundle, stix — path to STIX 2.x JSON bundle file
+#   taxii, taxii2 — TAXII 2.1 api_root + optional collection_id (+ auth)
+
+sources:
+  - name: local_reports
+    type: local_file
+    path: ./examples/sample_inputs
+    pattern: "*.txt"
+    source_trust: medium
+
+  - name: vendor_rss
+    type: rss_atom
+    url: https://example.com/security/feed.xml
+    source_trust: medium
+
+  - name: cisa_alert_page
+    type: html_report
+    url: https://www.cisa.gov/news-events/cybersecurity-advisories
+    source_trust: high
+
+  - name: archived_report
+    type: html
+    path: ./path/to/saved-report.html
+    source_trust: medium
+
+  - name: stix_from_disk
+    type: stix_bundle
+    path: ./data/enterprise-attack.json
+    source_trust: high
+
+  - name: opencti_taxii
+    type: taxii
+    api_root: https://example-opencti/taxii2/root/
+    collection_id: "" # omit to auto-pick when exactly one collection exists
+    username: ""
+    password: ""
+    # api_key: ""
+    # api_key_header: Authorization
+    # api_key_prefix: "Bearer "
+    source_trust: high

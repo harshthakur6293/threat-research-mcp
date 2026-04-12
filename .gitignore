@@ -4,6 +4,7 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 .venv/
+.venv-*/
 venv/
 .env
 dist/
@@ -12,3 +13,5 @@ build/
 data/artifacts/
 data/cache/
 data/db/
+demo-*.json
+*DEMO*.md

@@ -1,0 +1,1 @@
+Phishing email delivered a ZIP containing JavaScript. Execution launched PowerShell with an encoded command and created a scheduled task for persistence.
