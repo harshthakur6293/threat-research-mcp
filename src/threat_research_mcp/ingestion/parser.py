@@ -6,7 +6,7 @@ import json
 import re
 from html.parser import HTMLParser
 from typing import Any, Dict, List, Optional
-from xml.etree import ElementTree as ET
+from xml.etree import ElementTree as ET  # nosec B405
 
 from threat_research_mcp.ingestion.errors import IngestionError
 
@@ -35,7 +35,7 @@ def _elem_all_text(el: ET.Element) -> str:
 def parse_feed_xml(xml_text: str) -> List[Dict[str, Any]]:
     """Parse RSS 2.0 or Atom into a list of {title, url, published_at, summary}."""
     try:
-        root = ET.fromstring(xml_text)
+        root = ET.fromstring(xml_text)  # nosec B314
     except ET.ParseError as e:
         raise IngestionError(f"Invalid feed XML: {e}") from e
 

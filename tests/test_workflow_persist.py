@@ -1,5 +1,4 @@
 import json
-import os
 import sqlite3
 
 from threat_research_mcp.orchestrator.workflow import run_workflow

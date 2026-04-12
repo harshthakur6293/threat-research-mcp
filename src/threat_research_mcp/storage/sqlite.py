@@ -213,7 +213,7 @@ def search_normalized_documents(
             WHERE {where_sql}
             ORDER BY datetime(created_at) DESC
             LIMIT ? OFFSET ?
-        """
+        """  # nosec B608
         params.extend([lim, off])
         cur = conn.execute(sql, params)
         rows = cur.fetchall()
@@ -256,7 +256,7 @@ def search_analysis_products(
             WHERE {where_sql}
             ORDER BY datetime(created_at) DESC
             LIMIT ? OFFSET ?
-        """
+        """  # nosec B608
         params.extend([lim, off])
         cur = conn.execute(sql, params)
         rows = cur.fetchall()

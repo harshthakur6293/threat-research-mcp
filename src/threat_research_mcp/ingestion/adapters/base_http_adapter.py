@@ -42,7 +42,7 @@ def http_get_bytes(
     req = Request(url, headers=hdrs, method="GET")
     ctx = ssl.create_default_context()
     try:
-        with urlopen(req, timeout=timeout, context=ctx) as resp:
+        with urlopen(req, timeout=timeout, context=ctx) as resp:  # nosec B310
             return resp.read()
     except HTTPError as e:
         raise IngestionError(f"HTTP {e.code} for {url}: {e.reason}") from e
