@@ -36,6 +36,11 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Environment files
+.env
+.env.*
+!.env.local.example
+
 # IDEs
 .vscode/
 .idea/
@@ -58,3 +63,8 @@ data/db/*.sqlite-*
 
 # act cache
 .act/
+
+# Documentation drafts and specs
+*_MASTER_SPEC.md
+*-handoff.md
+security-agent-mcp*.md
