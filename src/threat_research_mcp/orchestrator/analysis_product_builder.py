@@ -267,7 +267,7 @@ def _detection_bundle_from_detection(
                     f"Log source guidance generated for {len(tech_ids)} technique(s). "
                     "Review deployment_checklist for priority actions."
                 )
-        except Exception:
+        except Exception:  # nosec B110 - intentional silent failure for optional feature
             # Silently skip if log source mapper is not available
             pass
 

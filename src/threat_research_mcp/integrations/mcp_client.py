@@ -45,7 +45,7 @@ class MCPClient:
         try:
             # Try to start the server briefly to check availability
             # This is a simple check - in production, you'd use MCP protocol handshake
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - command and args are validated from user config, not untrusted input
                 [self.command] + self.args + ["--help"],
                 capture_output=True,
                 timeout=5,
