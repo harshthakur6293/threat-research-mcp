@@ -7,7 +7,7 @@ All integrations are OPTIONAL - the threat-research-mcp works standalone.
 from __future__ import annotations
 
 import os
-import subprocess
+import subprocess  # nosec B404
 from typing import Any, Dict, List, Optional
 
 
