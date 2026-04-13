@@ -68,3 +68,11 @@ data/db/*.sqlite-*
 *_MASTER_SPEC.md
 *-handoff.md
 security-agent-mcp*.md
+INTEGRATION-COMPLETE.md
+INTEGRATION-SUMMARY.md
+CHANGELOG-v0.3-preview.md
+
+# Local development files
+.actrc
+local-ci-test.ps1
+.env.local.example

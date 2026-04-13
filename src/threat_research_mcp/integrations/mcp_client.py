@@ -14,7 +14,9 @@ from typing import Any, Dict, List, Optional
 class MCPClient:
     """Client for calling other MCP servers via stdio protocol."""
 
-    def __init__(self, server_name: str, command: str, args: List[str], env: Optional[Dict[str, str]] = None):
+    def __init__(
+        self, server_name: str, command: str, args: List[str], env: Optional[Dict[str, str]] = None
+    ):
         """
         Initialize MCP client.
 
@@ -49,13 +51,17 @@ class MCPClient:
                 timeout=5,
                 env=self.env,
             )
-            self._available = result.returncode == 0 or result.returncode == 1  # Some MCPs return 1 for --help
+            self._available = (
+                result.returncode == 0 or result.returncode == 1
+            )  # Some MCPs return 1 for --help
         except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
             self._available = False
 
         return self._available
 
-    def call_tool(self, tool_name: str, arguments: Dict[str, Any], timeout: int = 30) -> Optional[Dict[str, Any]]:
+    def call_tool(
+        self, tool_name: str, arguments: Dict[str, Any], timeout: int = 30
+    ) -> Optional[Dict[str, Any]]:
         """
         Call a tool on the MCP server.
 
@@ -73,13 +79,13 @@ class MCPClient:
         try:
             # In production, this would use the MCP protocol (JSON-RPC over stdio)
             # For now, this is a placeholder that returns None
-            # 
+            #
             # Actual implementation would:
             # 1. Start MCP server process
             # 2. Send JSON-RPC request via stdin
             # 3. Read JSON-RPC response from stdout
             # 4. Parse and return result
-            
+
             return None
         except Exception:
             return None
@@ -96,7 +102,7 @@ class MCPIntegrationManager:
     def _initialize_clients(self) -> None:
         """Initialize MCP clients for optional integrations."""
         # Check environment variables for MCP configurations
-        
+
         # fastmcp-threatintel
         if os.getenv("ENABLE_FASTMCP_THREATINTEL", "").lower() == "true":
             self.clients["fastmcp-threatintel"] = MCPClient(
@@ -106,7 +112,7 @@ class MCPIntegrationManager:
                 env={
                     "VIRUSTOTAL_API_KEY": os.getenv("VIRUSTOTAL_API_KEY", ""),
                     "OTX_API_KEY": os.getenv("OTX_API_KEY", ""),
-                }
+                },
             )
 
         # Security-Detections-MCP
@@ -117,7 +123,7 @@ class MCPIntegrationManager:
                     server_name="security-detections",
                     command="npx",
                     args=["-y", "security-detections-mcp"],
-                    env={"SIGMA_PATHS": sigma_paths}
+                    env={"SIGMA_PATHS": sigma_paths},
                 )
 
         # threat-hunting-mcp
@@ -141,7 +147,7 @@ class MCPIntegrationManager:
                     env={
                         "SPLUNK_HOST": os.getenv("SPLUNK_HOST", ""),
                         "SPLUNK_PORT": os.getenv("SPLUNK_PORT", "8089"),
-                    }
+                    },
                 )
 
     def get_available_integrations(self) -> Dict[str, bool]:
@@ -200,8 +206,7 @@ class MCPIntegrationManager:
             return None
 
         return client.call_tool(
-            "create_behavioral_hunt",
-            {"technique_id": technique_id, "framework": "PEAK"}
+            "create_behavioral_hunt", {"technique_id": technique_id, "framework": "PEAK"}
         )
 
     def validate_spl_query(self, query: str) -> Optional[Dict[str, Any]]:

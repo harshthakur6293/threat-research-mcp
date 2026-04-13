@@ -171,10 +171,10 @@ class TestEnhancedAnalysis:
             generate_behavioral_hunts=True,  # Request hunts
         )
         data = json.loads(result)
-        
+
         # Should have enhanced_features section
         assert "enhanced_features" in data
-        
+
         # Each feature should indicate if it's enabled or not
         for feature_name, feature_data in data["enhanced_features"].items():
             assert "enabled" in feature_data
@@ -186,32 +186,42 @@ class TestEnhancedAnalysis:
 class TestIntegrationConfiguration:
     """Test integration configuration via environment variables."""
 
-    @patch.dict(os.environ, {"ENABLE_FASTMCP_THREATINTEL": "true", "VIRUSTOTAL_API_KEY": "test_key"})
+    @patch.dict(
+        os.environ, {"ENABLE_FASTMCP_THREATINTEL": "true", "VIRUSTOTAL_API_KEY": "test_key"}
+    )
     def test_fastmcp_config_from_env(self):
         """Test fastmcp-threatintel configuration from environment."""
         _ = MCPIntegrationManager()
         # Should attempt to create client when env var is set
         assert os.getenv("ENABLE_FASTMCP_THREATINTEL") == "true"
 
-    @patch.dict(os.environ, {"ENABLE_SECURITY_DETECTIONS_MCP": "true", "SIGMA_PATHS": "/path/to/sigma"})
+    @patch.dict(
+        os.environ, {"ENABLE_SECURITY_DETECTIONS_MCP": "true", "SIGMA_PATHS": "/path/to/sigma"}
+    )
     def test_security_detections_config_from_env(self):
         """Test Security-Detections-MCP configuration from environment."""
         _ = MCPIntegrationManager()
         assert os.getenv("ENABLE_SECURITY_DETECTIONS_MCP") == "true"
         assert os.getenv("SIGMA_PATHS") == "/path/to/sigma"
 
-    @patch.dict(os.environ, {"ENABLE_THREAT_HUNTING_MCP": "true", "THREAT_HUNTING_MCP_PATH": "/path/to/hunting"})
+    @patch.dict(
+        os.environ,
+        {"ENABLE_THREAT_HUNTING_MCP": "true", "THREAT_HUNTING_MCP_PATH": "/path/to/hunting"},
+    )
     def test_threat_hunting_config_from_env(self):
         """Test threat-hunting-mcp configuration from environment."""
         _ = MCPIntegrationManager()
         assert os.getenv("ENABLE_THREAT_HUNTING_MCP") == "true"
         assert os.getenv("THREAT_HUNTING_MCP_PATH") == "/path/to/hunting"
 
-    @patch.dict(os.environ, {
-        "ENABLE_SPLUNK_MCP": "true",
-        "SPLUNK_MCP_PATH": "/path/to/splunk",
-        "SPLUNK_HOST": "splunk.example.com"
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "ENABLE_SPLUNK_MCP": "true",
+            "SPLUNK_MCP_PATH": "/path/to/splunk",
+            "SPLUNK_HOST": "splunk.example.com",
+        },
+    )
     def test_splunk_config_from_env(self):
         """Test Splunk MCP configuration from environment."""
         _ = MCPIntegrationManager()
