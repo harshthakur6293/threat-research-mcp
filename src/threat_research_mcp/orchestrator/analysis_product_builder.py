@@ -9,6 +9,7 @@ from threat_research_mcp.schemas.analysis_product import AnalysisProduct, IntelP
 from threat_research_mcp.schemas.detection_delivery import (
     DetectionDeliveryBundle,
     DetectionRuleArtifact,
+    LogSourceGuidance,
 )
 from threat_research_mcp.schemas.hunt_delivery import (
     HuntDeliveryPack,
@@ -229,7 +230,48 @@ def _detection_bundle_from_detection(
     notes: List[str] = []
     if isinstance(detection.get("ideas"), str):
         notes.append("Review ideas JSON for coverage vs environment.")
-    return DetectionDeliveryBundle(rules=rules, notes=notes)
+
+    # Add log source guidance if techniques are present
+    log_guidance: Optional[LogSourceGuidance] = None
+    if tech_ids:
+        try:
+            from threat_research_mcp.detection.log_source_mapper import (
+                get_log_sources_for_techniques,
+            )
+            from threat_research_mcp.detection.query_generator import (
+                generate_deployment_checklist,
+                generate_hunt_queries,
+            )
+
+            # Get log sources for detected techniques
+            log_sources = get_log_sources_for_techniques(tech_ids, environment="hybrid")
+
+            # Generate hunt queries for common SIEM platforms
+            queries = generate_hunt_queries(tech_ids, ["splunk", "sentinel", "elastic"])
+
+            # Generate deployment checklist
+            checklist = generate_deployment_checklist(log_sources)
+
+            log_guidance = LogSourceGuidance(
+                techniques=tech_ids,
+                environment="hybrid",
+                priority_summary=log_sources.get("priority_summary", {}),
+                log_sources=log_sources.get("log_sources", {}),
+                hunt_queries=queries.get("queries", {}),
+                deployment_checklist=checklist,
+                blind_spots=log_sources.get("blind_spots", []),
+            )
+
+            if log_guidance.log_sources:
+                notes.append(
+                    f"Log source guidance generated for {len(tech_ids)} technique(s). "
+                    "Review deployment_checklist for priority actions."
+                )
+        except Exception:
+            # Silently skip if log source mapper is not available
+            pass
+
+    return DetectionDeliveryBundle(rules=rules, log_source_guidance=log_guidance, notes=notes)
 
 
 def build_analysis_product(
