@@ -284,18 +284,19 @@ class TestLangGraphOrchestrator:
 
         # Create an agent that reads from research_findings
         class DependentAgent(BaseAgent):
-            def execute(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+            def execute(self, state: ThreatAnalysisState) -> Dict[str, Any]:
                 # Read from research findings
                 research = state.get("research_findings", {})
 
                 # Create output based on research
-                state["hunt_plan"] = {
-                    "agent": self.name,
-                    "findings": {"based_on_research": research.get("findings", {})},
-                    "confidence": 0.8,
+                return {
+                    "hunt_plan": {
+                        "agent": self.name,
+                        "findings": {"based_on_research": research.get("findings", {})},
+                        "confidence": 0.8,
+                    },
+                    "agent_history": self._get_updated_history(state),
                 }
-
-                return self._record_execution(state)
 
         research_agent = MockAgent(name="Research", output_field="research_findings")
         hunting_agent = DependentAgent("Dependent Hunting")
