@@ -1,10 +1,6 @@
 {
   "recommendations": [
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "charliermarsh.ruff",
-    "ms-python.debugpy",
-    "tamasfe.even-better-toml",
-    "redhat.vscode-yaml"
+    "github.vscode-github-actions",
+    "github.vscode-codeql"
   ]
 }
