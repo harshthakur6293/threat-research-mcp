@@ -22,4 +22,4 @@ jobs:
       - run: python -m pip install -e .[dev]
       - run: python -m ruff check .
       - run: python -m ruff format --check .
-      - run: python -m pytest -q --maxfail=1 --cov=src/threat_research_mcp --cov-fail-under=65
+      - run: python -m pytest -v --maxfail=1 --cov=src/threat_research_mcp --cov-fail-under=65 --tb=short
