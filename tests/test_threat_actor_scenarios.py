@@ -23,7 +23,7 @@ from threat_research_mcp.extensions.mitre_attack_integration import (  # noqa: E
 from threat_research_mcp.detection.log_source_mapper import (  # noqa: E402
     get_log_sources_for_techniques,
 )
-from tests.threat_actor_profiles import (  # noqa: E402
+from threat_actor_profiles import (  # noqa: E402
     get_threat_actor_profile,
     list_threat_actors,
 )

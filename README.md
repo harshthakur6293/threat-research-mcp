@@ -1,426 +1,396 @@
-# Threat Research MCP
+# Threat Research MCP v0.5.0-dev
 
 [![CI](https://github.com/harshdthakur6293/threat-research-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/harshdthakur6293/threat-research-mcp/actions/workflows/ci.yml)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![MCP Python 3.10+](https://img.shields.io/badge/MCP%20server-Python%203.10+-teal.svg)](https://github.com/modelcontextprotocol/python-sdk)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Tests](https://img.shields.io/badge/tests-138%20passing-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-100%20passing-brightgreen.svg)]()
 
-> **Enterprise-grade threat intelligence analysis and detection engineering platform powered by AI**
+**A Model Context Protocol (MCP) server for defensive threat intelligence analysis and detection engineering.**
 
-Transform raw threat intelligence into actionable security detections in seconds. Paste a threat report, get IOCs, ATT&CK techniques, hunt hypotheses, SIEM queries, and production-ready detection rules—all via your AI assistant.
+This tool helps security analysts extract IOCs from threat intelligence, enrich them with multiple sources, map to ATT&CK techniques, and generate detection rules. It's designed for SOC analysts, threat hunters, and detection engineers who need to quickly analyze threat reports and create actionable detections.
 
-**Threat Research MCP** is an open-source [Model Context Protocol](https://modelcontextprotocol.io/) server for **defensive security operations**: intel ingestion → analysis → threat hunting → detection engineering → validation.
-
----
-
-## 🎯 Key Features
-
-### Core Capabilities
-- **🔍 IOC Extraction** — Automatically extract IPs, domains, URLs, hashes, emails from any text
-- **🎯 ATT&CK Mapping** — Auto-detect techniques from threat intelligence using keyword-based heuristics
-- **📊 Log Source Recommendations** — Get specific log sources (Windows Event IDs, CloudTrail, Sysmon) for 20+ techniques
-- **🔎 SIEM Query Generation** — Ready-to-run queries for Splunk, Microsoft Sentinel, Elastic, AWS Athena, Chronicle
-- **🛡️ Detection Engineering** — Draft Sigma rules, KQL, SPL with validation
-- **🎭 Threat Actor Profiles** — Test against 6 realistic APT/UNC group scenarios
-- **🔗 Optional MCP Integrations** — Chain with 4 specialist MCPs for enhanced capabilities
-
-### Enterprise Features
-- **✅ 100 Passing Tests** — Comprehensive test coverage including 29 threat actor scenario tests
-- **🏢 Production Ready** — 19 MCP tools, 4-agent orchestration, optional SQLite persistence
-- **🔒 Security First** — Defensive use only, no offensive capabilities, comprehensive security documentation
-- **📈 Scalable** — Standalone or integrated with specialist MCPs for enterprise workflows
-- **🔄 CI/CD Ready** — Pre-commit hooks, Makefile, GitHub Actions for quality assurance
-- **📚 Enterprise Documentation** — 15+ comprehensive guides for deployment and operations
+**Current Status:** v0.5.0-dev (Phase 1 complete: LangGraph foundation + Research Agent v2)
 
 ---
 
-## 🚀 Quick Start (2 Minutes)
+## What This Tool Does
 
-### 1. Install
+### Core Functionality
+
+1. **IOC Extraction**
+   - Extracts IPs, domains, URLs, file hashes (MD5/SHA1/SHA256) from text
+   - Uses regex patterns (not ML/AI)
+   - Returns structured JSON with IOC types
+
+2. **Multi-Source Enrichment** (NEW in v0.5.0)
+   - Enriches IOCs with 7+ threat intelligence sources
+   - Tier 1: VirusTotal, AlienVault OTX, AbuseIPDB, URLhaus, ThreatFox
+   - Tier 2: Shodan, GreyNoise (requires API keys)
+   - Returns reputation, tags, first/last seen dates
+   - **Note:** Currently returns mock data for testing; real API integration in progress
+
+3. **Confidence Scoring** (NEW in v0.5.0)
+   - Calculates confidence based on:
+     - Number of sources (more sources = higher confidence)
+     - Source agreement (consistent results = higher confidence)
+     - Source reputation (reliable sources = higher confidence)
+     - Data freshness (recent data = higher confidence)
+   - Returns score 0.0-1.0 with factor breakdown
+
+4. **ATT&CK Technique Mapping**
+   - Extracts technique IDs (e.g., T1059.001) from text
+   - Keyword-based heuristics (not ML/AI)
+   - Maps to MITRE ATT&CK framework
+
+5. **Log Source Recommendations**
+   - Provides specific log sources for 20+ common techniques
+   - Includes Windows Event IDs, Sysmon events, CloudTrail, etc.
+   - Environment-specific (AWS, Azure, GCP, on-prem)
+
+6. **SIEM Query Generation**
+   - Generates hunt queries for Splunk, Sentinel, Elastic
+   - Based on ATT&CK techniques
+   - Ready to copy-paste into SIEM
+
+7. **Detection Rule Drafting**
+   - Generates Sigma rules (universal format)
+   - Includes KQL (Sentinel) and SPL (Splunk) variants
+   - Basic validation included
+
+8. **Threat Actor Profiles**
+   - 6 pre-built profiles (APT29, APT28, APT41, UNC2452, UNC3890, Lazarus)
+   - Based on public intelligence reports
+   - Useful for testing detections
+
+---
+
+## What This Tool Does NOT Do
+
+- ❌ Does not perform active scanning or reconnaissance
+- ❌ Does not execute malware or analyze binaries
+- ❌ Does not access live threat feeds automatically (you provide the text)
+- ❌ Does not make attribution claims (only provides "assessed" confidence)
+- ❌ Does not replace human analysis (it's a tool to assist analysts)
+- ❌ Does not guarantee 100% accuracy (always validate results)
+
+---
+
+## Architecture
+
+### v0.5.0: Multi-Agent System (Current)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  LangGraph Orchestrator                                 │
+│  ┌───────────────────────────────────────────────────┐ │
+│  │  Research Agent v2                                │ │
+│  │  - Extracts IOCs                                  │ │
+│  │  - Enriches with 7+ sources                       │ │
+│  │  - Calculates confidence                          │ │
+│  └───────────────────────────────────────────────────┘ │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐ │
+│  │  Hunting Agent (Coming in Week 5-6)              │ │
+│  │  - Generates hunt hypotheses                      │ │
+│  │  - Framework-based (PEAK, TaHiTI, SQRRL)         │ │
+│  └───────────────────────────────────────────────────┘ │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐ │
+│  │  Detection Agent (Coming in Week 5-6)            │ │
+│  │  - Generates Sigma/KQL/SPL rules                  │ │
+│  │  - Multi-schema support                           │ │
+│  └───────────────────────────────────────────────────┘ │
+│                                                         │
+│  ┌───────────────────────────────────────────────────┐ │
+│  │  Reviewer Agent (Coming in Week 7-8)             │ │
+│  │  - Validates outputs                              │ │
+│  │  - Triggers refinement loops                      │ │
+│  └───────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key Difference from v0.4:**
+- v0.4: Sequential pipeline (agents don't communicate)
+- v0.5.0: True multi-agent (agents share state, validation loops, human-in-the-loop)
+
+---
+
+## Installation
+
+### Prerequisites
+
+- **Python 3.9+** (required for LangGraph)
+- **Python 3.10+** (recommended for MCP server features)
+
+```bash
+python --version  # Check your version
+```
+
+### Quick Install
 
 ```bash
 git clone https://github.com/harshdthakur6293/threat-research-mcp.git
 cd threat-research-mcp
-python3 -m venv .venv
+
+# Create virtual environment
+python3.10 -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Install
 pip install -e ".[dev]"
 ```
 
-### 2. Validate Installation
+### Verify Installation
 
 ```bash
-# Run comprehensive test suite (100 tests)
-pytest tests/ -v
+# Run tests (138 tests should pass)
+pytest tests/ --ignore=tests/test_langgraph_orchestrator.py -v
 
-# Test threat actor scenarios (29 tests)
-pytest tests/test_threat_actor_scenarios.py -v
+# Test enrichment framework
+pytest tests/test_enrichment.py -v
 
-# Run interactive demo
-python examples/demo_threat_actor_testing.py
-```
-
-### 3. Connect to Your AI Assistant
-
-Add to your MCP config (`mcp.json` for Cursor, `.vscode/mcp.json` for VS Code, `cline_mcp_settings.json` for Cline):
-
-```json
-{
-  "mcpServers": {
-    "threat-research-mcp": {
-      "command": "/absolute/path/to/threat-research-mcp/.venv/bin/python",
-      "args": ["-m", "threat_research_mcp.server"],
-      "cwd": "/absolute/path/to/threat-research-mcp"
-    }
-  }
-}
-```
-
-**Windows users:** Use `C:/path/to/.venv/Scripts/python.exe` for `command`.
-
-### 4. Start Using
-
-Open your AI assistant and try:
-- "Extract IOCs from this threat report: [paste]"
-- "Analyze this incident and give me hunt hypotheses"
-- "Generate log sources for APT29 techniques"
-- "Create a Sigma rule for PowerShell encoded commands"
-
----
-
-## 📊 What You Get (v0.4)
-
-### 19 MCP Tools
-
-| Category | Tools | Description |
-|----------|-------|-------------|
-| **Analysis** | `extract_iocs`, `summarize`, `attack_map` | Extract IOCs, summarize intel, map to ATT&CK |
-| **Detection** | `sigma`, `validate_sigma`, `generate_detection_ideas` | Draft and validate Sigma rules |
-| **Hunting** | `hunt`, `timeline`, `intel_to_log_sources` | Generate hunt hypotheses, reconstruct timelines |
-| **Log Sources** | `recommend_log_sources`, `intel_to_log_sources` | Get specific log sources and SIEM queries |
-| **Integration** | `enhanced_intel_analysis`, `get_integration_status` | Orchestrate multiple MCPs, check availability |
-| **Ingestion** | `ingest_sources`, `intel_to_analysis_product` | Ingest from RSS, STIX, TAXII, HTML |
-| **History** | `search_ingested_intel`, `search_analysis_product_history` | Search past analyses (requires SQLite) |
-
-### 4-Agent Orchestration
-
-```mermaid
-graph LR
-    Intel[Threat Intel] --> Research[Research Agent]
-    Research --> Hunting[Hunting Agent]
-    Hunting --> Detection[Detection Agent]
-    Detection --> Reviewer[Reviewer Agent]
-    Reviewer --> Output[Analysis Product]
-```
-
-1. **Research Agent** — IOC extraction, summarization, ATT&CK mapping
-2. **Hunting Agent** — Hypothesis generation, timeline reconstruction
-3. **Detection Agent** — Sigma/KQL/SPL draft generation
-4. **Reviewer Agent** — Quality checks, confidence scoring
-
-### Threat Actor Testing Framework
-
-Test your detections against 6 realistic threat actor profiles:
-
-| Actor | Attribution | Key Campaign | Coverage |
-|-------|-------------|--------------|----------|
-| **APT29** | Russian SVR | SolarWinds | 29 techniques, 11 tactics |
-| **APT28** | Russian GRU | Spearphishing | 27 techniques, 11 tactics |
-| **APT41** | Chinese State | Healthcare/Telecom | 29 techniques, 12 tactics |
-| **UNC2452** | Russian SVR | Supply Chain | 25 techniques, 11 tactics |
-| **UNC3890** | Chinese Nexus | ProxyShell | 25 techniques, 11 tactics |
-| **Lazarus** | North Korean | Cryptocurrency | 29 techniques, 12 tactics |
-
-**Run tests:** `pytest tests/test_threat_actor_scenarios.py -v`
-
----
-
-## 🏢 Enterprise Deployment
-
-### Standalone Deployment
-
-```bash
-# Production installation
-pip install -e .
-
-# Start MCP server
-python -m threat_research_mcp.server
-
-# Enable SQLite persistence
-export THREAT_RESEARCH_MCP_DB=/path/to/data/db/runs.sqlite
-python -m threat_research_mcp.server
-```
-
-### Enhanced Deployment (with Optional MCPs)
-
-Integrate with specialist MCPs for enterprise-grade capabilities:
-
-| MCP | Purpose | Enterprise Use Case |
-|-----|---------|---------------------|
-| **[fastmcp-threatintel](https://github.com/4R9UN/fastmcp-threatintel)** | IOC enrichment | Validate IOCs against VirusTotal, OTX, AbuseIPDB |
-| **[Security-Detections-MCP](https://github.com/MHaggis/Security-Detections-MCP)** | Coverage analysis | Check against 8,200+ existing detection rules |
-| **[threat-hunting-mcp](https://github.com/THORCollective/threat-hunting-mcp-server)** | Behavioral hunting | Hunt for behaviors that survive IOC rotation |
-| **[Splunk MCP](https://github.com/splunk/splunk-mcp-server2)** | Query validation | Validate SPL queries with risk scoring |
-
-**Setup:** See [`docs/OPTIONAL-INTEGRATIONS.md`](docs/OPTIONAL-INTEGRATIONS.md)
-
-### CI/CD Integration
-
-```bash
-# Pre-commit hooks (automatic code quality)
-pre-commit install
-
-# Local CI checks (run before push)
-make ci
-
-# Run specific checks
-make test      # Run pytest
-make lint      # Run ruff
-make security  # Run bandit
-```
-
-### Docker Deployment (Coming Soon)
-
-```bash
-docker build -t threat-research-mcp .
-docker run -p 8000:8000 threat-research-mcp
+# Test Research Agent v2
+pytest tests/test_research_agent_v2.py -v
 ```
 
 ---
 
-## 📚 Documentation
+## Usage
 
-### Getting Started
-- **[Quick Start Guide](docs/using-as-a-security-engineer.md)** — Step-by-step setup for Cursor, VS Code, Cline
-- **[Threat Actor Testing](docs/THREAT-ACTOR-TESTING.md)** — Test against realistic APT scenarios
-- **[Detection Engineering Workflows](docs/THREAT-ACTOR-QUICK-START.md)** — Build detections from threat actor profiles
-- **[Adding Threat Actors](docs/ADDING-THREAT-ACTORS.md)** — Add custom profiles from public intelligence
-
-### Integration Guides
-- **[Complete MCP Ecosystem](docs/complete-mcp-ecosystem.md)** — 5-MCP integration guide
-- **[Optional Integrations](docs/OPTIONAL-INTEGRATIONS.md)** — Setup guide for specialist MCPs
-- **[Integration Architecture](docs/INTEGRATION-ARCHITECTURE.md)** — Technical architecture details
-- **[Quick Reference](docs/QUICK-REFERENCE.md)** — One-page cheat sheet
-
-### Feature Documentation
-- **[Log Source Recommendations](docs/log-source-recommendations.md)** — Specific log sources for 20+ techniques
-- **[Automatic Technique Detection](docs/automatic-technique-detection.md)** — Auto-detect ATT&CK techniques
-- **[Behavioral Hunting](docs/threat-hunting-mcp-integration.md)** — Hunt behaviors, not IOCs
-- **[Splunk Integration](docs/splunk-mcp-integration.md)** — Query validation and execution
-
-### Technical Reference
-- **[Tool Contracts](docs/tool-contracts.md)** — All 19 MCP tools with inputs/outputs
-- **[Architecture](docs/architecture.md)** — System design and module status
-- **[Canonical Schemas](docs/canonical-schemas.md)** — `AnalysisProduct` JSON schema
-- **[Ingestion](docs/ingestion.md)** — Configure RSS, STIX, TAXII sources
-- **[Security](SECURITY.md)** — Security policy and hardening guidance
-
----
-
-## 🔬 Use Cases
-
-### 1. Threat Intelligence Analysis
+### 1. Basic IOC Extraction
 
 ```python
-# Analyze threat intelligence report
-{
-  "tool": "intel_to_log_sources",
-  "arguments": {
-    "intel_text": "APT29 using ICP Canister C2 via blockchain...",
-    "environment": "aws",
-    "siem_platforms": "splunk,sentinel"
-  }
-}
+from threat_research_mcp.tools.extract_iocs import extract_iocs_json
 
-# Output: Auto-detected techniques, 25+ log sources, ready-to-run queries
+intel_text = """
+APT29 campaign detected.
+IOCs: 185.220.101.45, malicious-c2.com
+Hash: 1234567890abcdef1234567890abcdef
+"""
+
+result = extract_iocs_json(intel_text)
+# Returns: {"ips": ["185.220.101.45"], "domains": ["malicious-c2.com"], ...}
 ```
 
-### 2. Detection Engineering
+### 2. Multi-Source Enrichment (NEW)
 
 ```python
-# Build detections for specific threat actor
-from tests.threat_actor_profiles import get_threat_actor_profile
+from threat_research_mcp.agents.research_agent_v2 import ResearchAgentV2
+from threat_research_mcp.schemas.workflow_state import create_initial_state
 
-profile = get_threat_actor_profile("APT29")
-techniques = profile["ttps"]["initial_access"]
+# Initialize agent
+agent = ResearchAgentV2(api_keys={
+    "VirusTotal": "your_api_key",  # Optional
+    "Shodan": "your_api_key",       # Optional
+})
 
-# Generate log sources and SIEM queries
-log_guidance = get_log_sources_for_techniques(techniques)
-hunt_queries = generate_hunt_queries(techniques, siem_platforms=["splunk"])
+# Create state
+state = create_initial_state(
+    intel_text="APT29 campaign: IP 185.220.101.45"
+)
+
+# Execute
+result = agent.execute(state)
+
+# Access results
+findings = result["research_findings"]["findings"]
+print(f"IOCs: {findings['iocs']}")
+print(f"Confidence: {findings['confidence_analysis']['overall_confidence']}")
 ```
 
-### 3. Threat Hunting
+### 3. ATT&CK Technique Mapping
 
 ```python
-# Hunt for APT41 activity
-profile = get_threat_actor_profile("APT41")
+from threat_research_mcp.extensions.mitre_attack_integration import extract_techniques_from_intel
 
-# Build hunt hypotheses
-hypotheses = [
-    "APT41 exploited public-facing applications",
-    "APT41 deployed web shells for persistence",
-    "APT41 used Cobalt Strike for C2"
-]
+intel_text = "Adversary used PowerShell for execution (T1059.001)"
+techniques = extract_techniques_from_intel(intel_text)
+# Returns: [{"technique_id": "T1059.001", "name": "PowerShell", ...}]
+```
 
-# Generate hunt queries
+### 4. Generate SIEM Queries
+
+```python
+from threat_research_mcp.detection.log_source_mapper import generate_hunt_queries
+
 queries = generate_hunt_queries(
-    profile["ttps"]["initial_access"],
-    siem_platforms=["splunk"]
+    techniques=["T1059.001"],
+    siem_platforms=["splunk", "sentinel"]
+)
+# Returns ready-to-run Splunk and Sentinel queries
+```
+
+### 5. Generate Sigma Rule
+
+```python
+from threat_research_mcp.detection.sigma_generator import generate_sigma_rule
+
+rule = generate_sigma_rule(
+    title="PowerShell Encoded Command",
+    description="Detects encoded PowerShell execution",
+    techniques=["T1059.001"],
+    log_source="windows",
+    detection_logic={
+        "selection": {
+            "EventID": 4688,
+            "CommandLine|contains": "powershell -enc"
+        }
+    }
 )
 ```
 
-### 4. Coverage Analysis
+---
 
-```python
-# Find common techniques across multiple actors
-actors = ["APT28", "APT29", "UNC2452"]
-common_techniques = find_common_techniques(actors)
+## Test Coverage
 
-# Build detections that cover multiple actors
-# Efficiency: 15 detections cover 50+ total techniques
-```
+**138 tests passing** across:
 
-### 5. IOC-Based Blocking
+- ✅ IOC extraction (2 tests)
+- ✅ Enrichment framework (25 tests)
+- ✅ Research Agent v2 (13 tests)
+- ✅ Threat actor scenarios (29 tests)
+- ✅ Log source mapping (12 tests)
+- ✅ MCP integrations (20 tests)
+- ✅ Detection generation (3 tests)
+- ✅ Ingestion (20 tests)
+- ✅ Storage (3 tests)
+- ✅ Workflow (11 tests)
 
-```python
-# Extract IOCs from threat actor profile
-profile = get_threat_actor_profile("Lazarus Group")
-iocs = profile["iocs"]
+```bash
+# Run all tests
+pytest tests/ --ignore=tests/test_langgraph_orchestrator.py -v
 
-# Generate firewall rules, DNS blocklist, EDR hash blocks
-for ip in iocs["ips"]:
-    print(f"deny ip any any {ip} any")
+# Run specific test suite
+pytest tests/test_enrichment.py -v
+pytest tests/test_research_agent_v2.py -v
+pytest tests/test_threat_actor_scenarios.py -v
 ```
 
 ---
 
-## 🧪 Testing & Quality Assurance
+## Documentation
 
-### Test Coverage
+### Getting Started
+- [`docs/LANGGRAPH-QUICKSTART.md`](docs/LANGGRAPH-QUICKSTART.md) - LangGraph setup and usage
+- [`docs/MIGRATION-V04-TO-V05.md`](docs/MIGRATION-V04-TO-V05.md) - Upgrading from v0.4
+- [`docs/using-as-a-security-engineer.md`](docs/using-as-a-security-engineer.md) - End-to-end workflows
 
-```bash
-# Run all tests (100 tests)
-pytest tests/ -v
+### Architecture
+- [`docs/ROADMAP-V2-PLAN.md`](docs/ROADMAP-V2-PLAN.md) - Complete v2.0 roadmap (150+ pages)
+- [`docs/TRUE-MULTI-AGENT-DESIGN.md`](docs/TRUE-MULTI-AGENT-DESIGN.md) - Multi-agent architecture
+- [`docs/architecture.md`](docs/architecture.md) - System design
 
-# Run specific test suites
-pytest tests/test_threat_actor_scenarios.py -v  # 29 tests
-pytest tests/test_mcp_integrations.py -v        # 20 tests
-pytest tests/test_log_source_mapper.py -v       # 12 tests
+### Features
+- [`docs/log-source-recommendations.md`](docs/log-source-recommendations.md) - Log source mapping
+- [`docs/automatic-technique-detection.md`](docs/automatic-technique-detection.md) - ATT&CK mapping
+- [`docs/THREAT-ACTOR-TESTING.md`](docs/THREAT-ACTOR-TESTING.md) - Threat actor profiles
 
-# Run with coverage report
-pytest tests/ --cov=src/threat_research_mcp --cov-report=html
-```
-
-### Quality Checks
-
-```bash
-# Run all CI checks locally
-make ci
-
-# Individual checks
-make test      # Pytest with coverage
-make lint      # Ruff linting and formatting
-make security  # Bandit security scanning
-```
-
-### Pre-commit Hooks
-
-```bash
-# Install pre-commit hooks
-pre-commit install
-
-# Run manually
-pre-commit run --all-files
-```
+### Development
+- [`PHASE1-SUMMARY.md`](PHASE1-SUMMARY.md) - Phase 1 completion summary
+- [`WEEK3-4-SUMMARY.md`](WEEK3-4-SUMMARY.md) - Week 3-4 completion summary
+- [`docs/tool-contracts.md`](docs/tool-contracts.md) - MCP tool specifications
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
-### v0.4 (Current - April 2026) ✅
+### ✅ Phase 1: Foundation (Complete)
+- **Week 1-2:** LangGraph infrastructure, base agent framework
+- **Week 3-4:** Research Agent v2 with multi-source enrichment
 
-- **Threat Actor Testing Framework** ✅
-  - 6 realistic APT/UNC group profiles
-  - 29 comprehensive scenario tests
-  - Detection engineering workflows
-  - Public intelligence scraping templates
+### 🚧 Phase 1: Remaining (In Progress)
+- **Week 5-6:** Hunting & Detection Agents v2
+  - Framework-based hunting (PEAK, TaHiTI, SQRRL)
+  - Multi-schema detection (Sigma, KQL, SPL, EQL)
+  - HEARTH integration (50+ community hunts)
 
-- **Log Source Recommendations** ✅
-  - 20 common techniques mapped to specific log sources
-  - Ready-to-run queries for 5 SIEM platforms
-  - Deployment checklists
+- **Week 7-8:** Reviewer Agent & Validation
+  - Multi-factor validation
+  - Attribution confidence engine
+  - Alternative hypotheses
+  - Human-in-the-loop prompts
 
-- **Optional MCP Integrations** ✅
-  - Integration layer with graceful degradation
-  - One-click orchestration tool
-  - Support for 4 specialist MCPs
+### 📅 Future Phases
+- **Phase 2:** CRADLE integration (visualization, collaboration)
+- **Phase 3:** Graph intelligence (NetworkX → Neo4j)
+- **Phase 4:** Advanced features (ML, temporal analysis)
 
-- **Enterprise Documentation** ✅
-  - 15+ comprehensive guides
-  - Detection engineering workflows
-  - Threat actor testing guides
-
-### v0.5 (Q3 2026)
-
-- **Expanded Threat Actor Coverage**
-  - 20+ threat actor profiles
-  - Automated scraping from CISA, MITRE, Mandiant
-  - Quarterly profile updates
-
-- **Enhanced Detection Engineering**
-  - 100+ technique mappings
-  - Environment profiler
-  - Coverage gap detection
-  - ATT&CK Navigator integration
-
-- **Full MCP Protocol Client**
-  - Replace placeholder implementation
-  - Retry logic and circuit breakers
-  - Response caching
-  - Parallel MCP calls
-
-### v0.6 (Q1 2027)
-
-- **Platform Integrations**
-  - MISP, OpenCTI, Synapse connectors
-  - Semantic search over intel corpus
-  - Graph-based CTI reasoning
-
-- **Enterprise Features**
-  - Multi-tenant workspace isolation
-  - RBAC and audit logging
-  - Hunt campaign management
-  - Custom playbook engine
-
-### v1.0 (Q3 2027)
-
-- **Production Hardening**
-  - Docker/Kubernetes deployment
-  - High availability configuration
-  - Performance optimization
-  - Enterprise support options
-
-See [`.github/ROADMAP.md`](.github/ROADMAP.md) for detailed feature plans.
+See [`docs/ROADMAP-V2-PLAN.md`](docs/ROADMAP-V2-PLAN.md) for complete details.
 
 ---
 
-## 🤝 Contributing
+## Limitations & Caveats
 
-We welcome contributions from the security community!
+### Current Limitations
 
-### Ways to Contribute
+1. **Enrichment Sources**
+   - Currently returns mock data for testing
+   - Real API integration in progress
+   - Requires API keys for Tier 2 sources (Shodan, GreyNoise)
 
-1. **Add Threat Actor Profiles** — See [`docs/ADDING-THREAT-ACTORS.md`](docs/ADDING-THREAT-ACTORS.md)
-2. **Improve Detection Logic** — Enhance technique detection, log source mappings
-3. **Add SIEM Support** — Contribute query templates for additional platforms
-4. **Write Documentation** — Help others adopt the platform
-5. **Report Issues** — Found a bug? Open an issue
-6. **Submit Pull Requests** — Code contributions are welcome
+2. **IOC Extraction**
+   - Regex-based (not ML/AI)
+   - May have false positives/negatives
+   - Does not defang IOCs automatically
+
+3. **ATT&CK Mapping**
+   - Keyword-based heuristics
+   - May miss techniques without explicit IDs
+   - Requires manual validation
+
+4. **Detection Rules**
+   - Generated rules are drafts, not production-ready
+   - Require tuning for your environment
+   - May have false positives
+
+5. **Attribution**
+   - Never claims "confirmed" attribution
+   - Always uses "assessed" or "potential"
+   - Confidence scores are estimates, not guarantees
+
+### Best Practices
+
+- ✅ Always validate IOC extraction results
+- ✅ Review enrichment data before taking action
+- ✅ Test detection rules in dev/test environment first
+- ✅ Tune rules for your specific environment
+- ✅ Treat attribution as hypothesis, not fact
+- ✅ Use confidence scores as guidance, not absolute truth
+
+---
+
+## Contributing
+
+We welcome contributions! See areas where you can help:
+
+1. **Add Real API Integrations**
+   - Replace mock data with real API calls
+   - Add error handling and rate limiting
+   - See `src/threat_research_mcp/enrichment/tier1/`
+
+2. **Add More Enrichment Sources**
+   - Tier 3: C2 trackers, phishing feeds, malware sandboxes
+   - Tier 4: LOLBins (LOLBAS, GTFOBins, WADComs)
+   - See `src/threat_research_mcp/enrichment/`
+
+3. **Improve IOC Extraction**
+   - Better regex patterns
+   - Support for more IOC types
+   - Defanging support
+   - See `src/threat_research_mcp/tools/extract_iocs.py`
+
+4. **Add Threat Actor Profiles**
+   - Based on public intelligence reports
+   - See `tests/threat_actor_profiles.py`
+
+5. **Improve Detection Rules**
+   - Better Sigma rule generation
+   - More schema support (EQL, YARA, etc.)
+   - See `src/threat_research_mcp/detection/`
 
 ### Development Setup
 
 ```bash
-# Clone and install
 git clone https://github.com/harshdthakur6293/threat-research-mcp.git
 cd threat-research-mcp
 pip install -e ".[dev]"
@@ -429,61 +399,55 @@ pip install -e ".[dev]"
 pre-commit install
 
 # Run tests
-make test
+pytest tests/ -v
 
-# Run all CI checks
-make ci
+# Run linting
+ruff check src/ tests/
+
+# Run security scan
+bandit -r src/
 ```
-
-### Security Vulnerabilities
-
-For security vulnerabilities, use GitHub's **Security → Report a vulnerability** feature. See [`SECURITY.md`](SECURITY.md) for details.
-
-**Defensive use only** in authorized environments. See [`SECURITY.md`](SECURITY.md) for scope and hardening guidance.
 
 ---
 
-## 📄 License
+## Security
+
+**Defensive Use Only:** This tool is designed for defensive security operations in authorized environments.
+
+- ❌ Do not use for offensive security operations
+- ❌ Do not use for unauthorized access or reconnaissance
+- ❌ Do not use to generate malware or exploits
+
+**Reporting Vulnerabilities:** Use GitHub's Security → Report a vulnerability feature.
+
+See [`SECURITY.md`](SECURITY.md) for full security policy.
+
+---
+
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-Copyright (c) 2026 Harsh Thakur
-
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-This project builds on the excellent work of:
+Built on:
 - [Model Context Protocol](https://modelcontextprotocol.io/) by Anthropic
-- [MITRE ATT&CK Framework](https://attack.mitre.org/)
+- [LangGraph](https://github.com/langchain-ai/langgraph) for multi-agent orchestration
+- [MITRE ATT&CK](https://attack.mitre.org/) framework
 - [Sigma Rules](https://github.com/SigmaHQ/sigma)
-- [fastmcp-threatintel](https://github.com/4R9UN/fastmcp-threatintel)
-- [Security-Detections-MCP](https://github.com/MHaggis/Security-Detections-MCP)
-- [threat-hunting-mcp-server](https://github.com/THORCollective/threat-hunting-mcp-server)
 
-Special thanks to the threat intelligence community for public reporting that makes this work possible.
+Special thanks to the threat intelligence community for public reporting.
 
 ---
 
-## 📞 Support
+## Support
 
-- **Documentation:** [docs/](docs/)
+- **Documentation:** [`docs/`](docs/)
 - **Issues:** [GitHub Issues](https://github.com/harshdthakur6293/threat-research-mcp/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/harshdthakur6293/threat-research-mcp/discussions)
-- **Security:** See [SECURITY.md](SECURITY.md)
 
 ---
 
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a star! ⭐
-
----
-
-<div align="center">
-
-**Built with ❤️ for the defensive security community**
-
-[Documentation](docs/) · [Quick Start](docs/using-as-a-security-engineer.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
-
-</div>
+**Built for security analysts, by security analysts. Contributions welcome.**
