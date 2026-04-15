@@ -6,6 +6,7 @@ validation loops, and agent communication.
 """
 
 import pytest
+from typing import Dict, Any
 from unittest.mock import patch
 
 # Import with fallback for when LangGraph is not installed
