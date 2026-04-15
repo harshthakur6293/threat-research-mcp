@@ -79,35 +79,37 @@ This tool helps security analysts extract IOCs from threat intelligence, enrich 
 
 ### v0.5.0: Multi-Agent System (Current)
 
+```mermaid
+graph TB
+    Start([Threat Intel Input]) --> Research[Research Agent v2<br/>✅ COMPLETE]
+    
+    Research --> |IOCs + Techniques| Hunting[Hunting Agent<br/>🚧 Week 5-6]
+    Research --> |IOCs + Techniques| Detection[Detection Agent<br/>🚧 Week 5-6]
+    
+    Hunting --> |Hunt Plan| Reviewer[Reviewer Agent<br/>🚧 Week 7-8]
+    Detection --> |Detection Rules| Reviewer
+    
+    Reviewer --> Decision{Confidence<br/>Check}
+    
+    Decision --> |< 0.5| Human[Human Review]
+    Decision --> |0.5-0.7| Refine[Refinement Loop]
+    Decision --> |> 0.7| Complete([Analysis Complete])
+    
+    Human --> Reviewer
+    Refine --> Research
+    
+    style Research fill:#90EE90
+    style Hunting fill:#FFE4B5
+    style Detection fill:#FFE4B5
+    style Reviewer fill:#FFE4B5
+    style Complete fill:#90EE90
 ```
-┌─────────────────────────────────────────────────────────┐
-│  LangGraph Orchestrator                                 │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │  Research Agent v2                                │ │
-│  │  - Extracts IOCs                                  │ │
-│  │  - Enriches with 7+ sources                       │ │
-│  │  - Calculates confidence                          │ │
-│  └───────────────────────────────────────────────────┘ │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │  Hunting Agent (Coming in Week 5-6)              │ │
-│  │  - Generates hunt hypotheses                      │ │
-│  │  - Framework-based (PEAK, TaHiTI, SQRRL)         │ │
-│  └───────────────────────────────────────────────────┘ │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │  Detection Agent (Coming in Week 5-6)            │ │
-│  │  - Generates Sigma/KQL/SPL rules                  │ │
-│  │  - Multi-schema support                           │ │
-│  └───────────────────────────────────────────────────┘ │
-│                                                         │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │  Reviewer Agent (Coming in Week 7-8)             │ │
-│  │  - Validates outputs                              │ │
-│  │  - Triggers refinement loops                      │ │
-│  └───────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
-```
+
+**Key Components:**
+- **Research Agent v2** (✅ Complete) - IOC extraction, multi-source enrichment, confidence scoring
+- **Hunting Agent** (🚧 Week 5-6) - Framework-based hunt hypothesis generation
+- **Detection Agent** (🚧 Week 5-6) - Multi-schema detection rule generation
+- **Reviewer Agent** (🚧 Week 7-8) - Validation, confidence analysis, refinement loops
 
 **Key Difference from v0.4:**
 - v0.4: Sequential pipeline (agents don't communicate)
