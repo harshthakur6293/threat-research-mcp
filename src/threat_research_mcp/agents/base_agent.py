@@ -38,40 +38,41 @@ class BaseAgent(ABC):
         self.logger = logging.getLogger(f"{__name__}.{name}")
 
     @abstractmethod
-    def execute(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def execute(self, state: ThreatAnalysisState) -> Dict[str, Any]:
         """
-        Execute the agent's logic and update the state.
+        Execute the agent's logic and return partial state updates.
 
         This method must be implemented by all concrete agents.
 
+        IMPORTANT: Return only the fields that were modified, not the entire state.
+        This prevents LangGraph from detecting duplicate updates to the same fields.
+
         Args:
-            state: Current workflow state
+            state: Current workflow state (read-only)
 
         Returns:
-            Updated workflow state with agent's findings
+            Partial state update dictionary with only modified fields
 
         Raises:
             Exception: If agent execution fails
         """
         pass
 
-    def _record_execution(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def _get_updated_history(self, state: ThreatAnalysisState) -> list:
         """
-        Record this agent's execution in the state history.
+        Get updated agent history with this agent's execution recorded.
 
         Args:
             state: Current workflow state
 
         Returns:
-            State with updated agent_history
+            Updated agent_history list
         """
-        if state.get("agent_history") is None:
-            state["agent_history"] = []
-
-        state["agent_history"].append(self.name)
+        agent_history = state.get("agent_history", []).copy()
+        agent_history.append(self.name)
         self.logger.info(f"{self.name} executed (iteration {state.get('iteration', 0)})")
 
-        return state
+        return agent_history
 
     def _validate_input(self, state: ThreatAnalysisState, required_fields: list) -> None:
         """
@@ -131,7 +132,7 @@ class MockAgent(BaseAgent):
         super().__init__(name)
         self.output_field = output_field
 
-    def execute(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def execute(self, state: ThreatAnalysisState) -> Dict[str, Any]:
         """
         Execute mock analysis.
 
@@ -139,7 +140,7 @@ class MockAgent(BaseAgent):
             state: Current workflow state
 
         Returns:
-            State with mock findings
+            Partial state update with mock findings
         """
         self._validate_input(state, ["intel_text"])
 
@@ -150,8 +151,8 @@ class MockAgent(BaseAgent):
             metadata={"intel_length": len(state["intel_text"])},
         )
 
-        # Update state
-        state[self.output_field] = output
-
-        # Record execution
-        return self._record_execution(state)
+        # Return only modified fields
+        return {
+            self.output_field: output,
+            "agent_history": self._get_updated_history(state),
+        }

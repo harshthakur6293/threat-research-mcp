@@ -145,7 +145,7 @@ class LangGraphOrchestrator:
 
     # Agent node functions
 
-    def _research_node(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def _research_node(self, state: ThreatAnalysisState) -> dict:
         """
         Execute the Research Agent.
 
@@ -153,22 +153,31 @@ class LangGraphOrchestrator:
             state: Current workflow state
 
         Returns:
-            Updated state with research findings
+            Partial state update with research findings
         """
         logger.info("Executing Research Agent")
 
         if self.research_agent:
-            return self.research_agent.execute(state)
+            result = self.research_agent.execute(state)
+            # Only return the fields that were modified
+            return {
+                "research_findings": result.get("research_findings"),
+                "agent_history": result.get("agent_history", state.get("agent_history", [])),
+            }
         else:
             # Mock implementation for testing
-            state["research_findings"] = {
-                "agent": "Research Agent",
-                "findings": {"iocs": [], "techniques": []},
-                "confidence": 0.8,
+            agent_history = state.get("agent_history", [])
+            agent_history.append("research")
+            return {
+                "research_findings": {
+                    "agent": "Research Agent",
+                    "findings": {"iocs": [], "techniques": []},
+                    "confidence": 0.8,
+                },
+                "agent_history": agent_history,
             }
-            return state
 
-    def _hunting_node(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def _hunting_node(self, state: ThreatAnalysisState) -> dict:
         """
         Execute the Hunting Agent.
 
@@ -176,22 +185,31 @@ class LangGraphOrchestrator:
             state: Current workflow state
 
         Returns:
-            Updated state with hunt plan
+            Partial state update with hunt plan
         """
         logger.info("Executing Hunting Agent")
 
         if self.hunting_agent:
-            return self.hunting_agent.execute(state)
+            result = self.hunting_agent.execute(state)
+            # Only return the fields that were modified
+            return {
+                "hunt_plan": result.get("hunt_plan"),
+                "agent_history": result.get("agent_history", state.get("agent_history", [])),
+            }
         else:
             # Mock implementation for testing
-            state["hunt_plan"] = {
-                "agent": "Hunting Agent",
-                "findings": {"hypotheses": [], "queries": []},
-                "confidence": 0.75,
+            agent_history = state.get("agent_history", [])
+            agent_history.append("hunting")
+            return {
+                "hunt_plan": {
+                    "agent": "Hunting Agent",
+                    "findings": {"hypotheses": [], "queries": []},
+                    "confidence": 0.75,
+                },
+                "agent_history": agent_history,
             }
-            return state
 
-    def _detection_node(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def _detection_node(self, state: ThreatAnalysisState) -> dict:
         """
         Execute the Detection Agent.
 
@@ -199,22 +217,31 @@ class LangGraphOrchestrator:
             state: Current workflow state
 
         Returns:
-            Updated state with detection rules
+            Partial state update with detection rules
         """
         logger.info("Executing Detection Agent")
 
         if self.detection_agent:
-            return self.detection_agent.execute(state)
+            result = self.detection_agent.execute(state)
+            # Only return the fields that were modified
+            return {
+                "detections": result.get("detections"),
+                "agent_history": result.get("agent_history", state.get("agent_history", [])),
+            }
         else:
             # Mock implementation for testing
-            state["detections"] = {
-                "agent": "Detection Agent",
-                "findings": {"rules": []},
-                "confidence": 0.85,
+            agent_history = state.get("agent_history", [])
+            agent_history.append("detection")
+            return {
+                "detections": {
+                    "agent": "Detection Agent",
+                    "findings": {"rules": []},
+                    "confidence": 0.85,
+                },
+                "agent_history": agent_history,
             }
-            return state
 
-    def _reviewer_node(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def _reviewer_node(self, state: ThreatAnalysisState) -> dict:
         """
         Execute the Reviewer Agent.
 
@@ -222,12 +249,19 @@ class LangGraphOrchestrator:
             state: Current workflow state
 
         Returns:
-            Updated state with review report
+            Partial state update with review report
         """
         logger.info("Executing Reviewer Agent")
 
         if self.reviewer_agent:
-            return self.reviewer_agent.execute(state)
+            result = self.reviewer_agent.execute(state)
+            # Only return the fields that were modified
+            return {
+                "review_report": result.get("review_report"),
+                "needs_refinement": result.get("needs_refinement", False),
+                "iteration": result.get("iteration", state.get("iteration", 0)),
+                "agent_history": result.get("agent_history", state.get("agent_history", [])),
+            }
         else:
             # Mock implementation for testing
             # Calculate overall confidence
@@ -241,22 +275,24 @@ class LangGraphOrchestrator:
 
             overall_confidence = sum(confidences) / len(confidences) if confidences else 0
 
-            state["review_report"] = {
-                "agent": "Reviewer Agent",
-                "findings": {
-                    "overall_confidence": overall_confidence,
-                    "issues": [],
-                    "validation_passed": overall_confidence >= 0.7,
+            agent_history = state.get("agent_history", [])
+            agent_history.append("reviewer")
+
+            return {
+                "review_report": {
+                    "agent": "Reviewer Agent",
+                    "findings": {
+                        "overall_confidence": overall_confidence,
+                        "issues": [],
+                        "validation_passed": overall_confidence >= 0.7,
+                    },
+                    "confidence": overall_confidence,
                 },
-                "confidence": overall_confidence,
+                "needs_refinement": overall_confidence < 0.7,
+                "agent_history": agent_history,
             }
 
-            # Update control flow
-            state["needs_refinement"] = overall_confidence < 0.7
-
-            return state
-
-    def _human_review_node(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def _human_review_node(self, state: ThreatAnalysisState) -> dict:
         """
         Handle human-in-the-loop review.
 
@@ -264,16 +300,22 @@ class LangGraphOrchestrator:
             state: Current workflow state
 
         Returns:
-            Updated state with human feedback
+            Partial state update with human feedback
         """
         logger.info("Human review required")
 
         # In a real implementation, this would prompt the user
         # For now, we'll just log and continue
-        state["human_feedback"] = "Human review completed"
-        state["needs_refinement"] = False
+        iteration = state.get("iteration", 0) + 1
+        agent_history = state.get("agent_history", [])
+        agent_history.append("human_review")
 
-        return state
+        return {
+            "human_feedback": "Human review completed",
+            "needs_refinement": False,
+            "iteration": iteration,
+            "agent_history": agent_history,
+        }
 
     def _should_refine_or_complete(
         self, state: ThreatAnalysisState

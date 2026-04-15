@@ -71,7 +71,7 @@ class ResearchAgentV2(BaseAgent):
 
         logger.info("Research Agent v2 initialized with enrichment sources")
 
-    def execute(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
+    def execute(self, state: ThreatAnalysisState) -> Dict[str, Any]:
         """
         Execute research agent logic.
 
@@ -79,7 +79,7 @@ class ResearchAgentV2(BaseAgent):
             state: Current workflow state
 
         Returns:
-            Updated state with research findings
+            Partial state update with research findings
         """
         self._validate_input(state, ["intel_text"])
 
@@ -121,22 +121,23 @@ class ResearchAgentV2(BaseAgent):
             "confidence_analysis": confidence_analysis,
         }
 
-        # Update state
-        state["research_findings"] = self._create_output(
-            findings=findings,
-            confidence=confidence_analysis["overall_confidence"],
-            metadata={
-                "source_status": self.enrichment_manager.get_source_status(),
-            },
-        )
-
         logger.info(
             f"Research complete: {len(iocs)} IOC types, "
             f"{confidence_analysis['successful_sources']} successful enrichments, "
             f"confidence: {confidence_analysis['overall_confidence']:.2f}"
         )
 
-        return self._record_execution(state)
+        # Return only modified fields
+        return {
+            "research_findings": self._create_output(
+                findings=findings,
+                confidence=confidence_analysis["overall_confidence"],
+                metadata={
+                    "source_status": self.enrichment_manager.get_source_status(),
+                },
+            ),
+            "agent_history": self._get_updated_history(state),
+        }
 
     def _extract_iocs(self, text: str) -> Dict[IOCType, List[str]]:
         """Extract IOCs from text."""
