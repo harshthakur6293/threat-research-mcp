@@ -5,7 +5,7 @@ This module implements the true multi-agent system using LangGraph, replacing
 the sequential pipeline approach from v0.4.
 """
 
-from typing import Literal, Optional, Callable
+from typing import Literal, Optional
 import logging
 
 try:

@@ -1,4 +1,4 @@
-# Threat Research MCP v0.5.0-dev
+# Threat Research MCP v0.5.0 (Active Development)
 
 [![CI](https://github.com/harshdthakur6293/threat-research-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/harshdthakur6293/threat-research-mcp/actions/workflows/ci.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -9,7 +9,7 @@
 
 This tool helps security analysts extract IOCs from threat intelligence, enrich them with multiple sources, map to ATT&CK techniques, and generate detection rules. It's designed for SOC analysts, threat hunters, and detection engineers who need to quickly analyze threat reports and create actionable detections.
 
-**Current Status:** v0.5.0-dev (Phase 1 complete: LangGraph foundation + Research Agent v2)
+**Current Status:** v0.5.0 (Active Development) - Phase 1 complete: LangGraph foundation + Research Agent v2
 
 ---
 

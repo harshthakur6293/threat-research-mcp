@@ -173,7 +173,7 @@ def demo_with_memory():
     config1 = {"configurable": {"thread_id": "thread-1"}}
     result1 = orchestrator.run(state1, config=config1)
     
-    print(f"   ✅ First analysis complete")
+    print("   ✅ First analysis complete")
     print(f"   Analysis ID: {result1['analysis_id']}")
     
     # Second analysis (different thread)
@@ -185,7 +185,7 @@ def demo_with_memory():
     config2 = {"configurable": {"thread_id": "thread-2"}}
     result2 = orchestrator.run(state2, config=config2)
     
-    print(f"   ✅ Second analysis complete")
+    print("   ✅ Second analysis complete")
     print(f"   Analysis ID: {result2['analysis_id']}")
     
     print("\n💡 Memory allows context retention across analyses")

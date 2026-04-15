@@ -5,7 +5,7 @@ This module provides the EnrichmentManager class that coordinates
 enrichment across multiple sources and aggregates results.
 """
 
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Any
 import logging
 
 from threat_research_mcp.enrichment.base import (

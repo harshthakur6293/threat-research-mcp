@@ -25,7 +25,7 @@ class AbuseIPDBSource(EnrichmentSource):
     
     def enrich(self, ioc: str, ioc_type: IOCType) -> EnrichmentResult:
         if not self.can_enrich(ioc_type):
-            return self._create_result(ioc=ioc, ioc_type=ioc_type, error=f"AbuseIPDB only supports IPs")
+            return self._create_result(ioc=ioc, ioc_type=ioc_type, error="AbuseIPDB only supports IPs")
         
         # Mock data
         is_malicious = "malicious" in ioc.lower() or ioc.startswith("185.220.101")

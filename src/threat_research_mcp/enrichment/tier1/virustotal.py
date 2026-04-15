@@ -5,7 +5,7 @@ This source enriches IOCs using the VirusTotal API.
 For testing without an API key, it returns mock data.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 import logging
 
 from threat_research_mcp.enrichment.base import (
