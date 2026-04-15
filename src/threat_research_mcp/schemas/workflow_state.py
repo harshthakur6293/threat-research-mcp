@@ -6,6 +6,12 @@ LangGraph workflow. Each agent reads from and writes to this state.
 """
 
 from typing import TypedDict, Optional, Dict, List, Any
+import operator
+
+try:
+    from typing import Annotated
+except ImportError:
+    from typing_extensions import Annotated
 
 
 class ThreatAnalysisState(TypedDict, total=False):
@@ -63,7 +69,7 @@ class ThreatAnalysisState(TypedDict, total=False):
     # Metadata fields
     analysis_id: Optional[str]
     timestamp: Optional[str]
-    agent_history: Optional[List[str]]
+    agent_history: Annotated[List[str], operator.add]  # Use operator.add to concatenate lists
 
 
 def create_initial_state(
