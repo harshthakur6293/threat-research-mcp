@@ -172,18 +172,20 @@ class TestLangGraphOrchestrator:
 
         # Create a reviewer that always returns low confidence
         class LowConfidenceReviewer(BaseAgent):
-            def execute(self, state: ThreatAnalysisState) -> ThreatAnalysisState:
-                state["review_report"] = {
-                    "agent": "Low Confidence Reviewer",
-                    "findings": {
-                        "overall_confidence": 0.5,
-                        "issues": ["Low confidence"],
-                        "validation_passed": False,
+            def execute(self, state: ThreatAnalysisState) -> Dict[str, Any]:
+                return {
+                    "review_report": {
+                        "agent": "Low Confidence Reviewer",
+                        "findings": {
+                            "overall_confidence": 0.5,
+                            "issues": ["Low confidence"],
+                            "validation_passed": False,
+                        },
+                        "confidence": 0.5,
                     },
-                    "confidence": 0.5,
+                    "needs_refinement": True,
+                    "agent_history": self._get_updated_history(state),
                 }
-                state["needs_refinement"] = True
-                return self._record_execution(state)
 
         orchestrator = LangGraphOrchestrator(
             reviewer_agent=LowConfidenceReviewer("Low Confidence Reviewer"),
