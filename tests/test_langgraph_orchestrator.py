@@ -238,7 +238,8 @@ class TestLangGraphOrchestrator:
 
         decision = orchestrator._should_refine_or_complete(state)
         assert decision == "refine"
-        assert state["iteration"] == 1  # Should increment
+        # Note: iteration is incremented by the reviewer node, not the routing function
+        assert state["iteration"] == 0  # Should not be mutated by routing function
 
     def test_conditional_routing_human_review(self):
         """Test conditional routing to human review."""
