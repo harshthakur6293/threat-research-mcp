@@ -103,7 +103,6 @@ class SigmaGenerator:
         Returns:
             Generated Sigma rule
         """
-        import uuid
 
         # Generate rule based on technique
         if technique_id == "T1059.001":  # PowerShell

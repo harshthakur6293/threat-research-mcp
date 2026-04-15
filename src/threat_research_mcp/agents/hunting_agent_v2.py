@@ -10,7 +10,7 @@ This agent generates threat hunting plans using structured frameworks:
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from threat_research_mcp.agents.base_agent import BaseAgent
 from threat_research_mcp.schemas.workflow_state import ThreatAnalysisState

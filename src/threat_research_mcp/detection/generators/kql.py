@@ -8,7 +8,6 @@ Reference: https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/
 
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
-from datetime import datetime
 
 
 @dataclass

@@ -8,7 +8,6 @@ Reference: https://www.elastic.co/guide/en/elasticsearch/reference/current/eql.h
 
 from typing import Dict, List, Any
 from dataclasses import dataclass, field
-from datetime import datetime
 
 
 @dataclass

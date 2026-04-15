@@ -7,7 +7,7 @@ emphasizes the integration of threat intelligence into the hunting process.
 Reference: https://www.betaalvereniging.nl/en/safety/tahiti/
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from dataclasses import dataclass, field
 
 

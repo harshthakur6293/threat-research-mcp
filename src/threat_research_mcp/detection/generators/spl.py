@@ -8,7 +8,6 @@ Reference: https://docs.splunk.com/Documentation/Splunk/latest/SearchReference/
 
 from typing import Dict, List, Any
 from dataclasses import dataclass, field
-from datetime import datetime
 
 
 @dataclass
