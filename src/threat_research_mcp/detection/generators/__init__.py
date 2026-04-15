@@ -1,12 +1,4 @@
-"""
-Detection generation and validation.
-
-This package provides multi-schema detection rule generation:
-- Sigma (universal detection format)
-- KQL (Kusto Query Language for Azure Sentinel)
-- SPL (Search Processing Language for Splunk)
-- EQL (Event Query Language for Elastic)
-"""
+"""Detection rule generators."""
 
 from threat_research_mcp.detection.generators.sigma import SigmaGenerator
 from threat_research_mcp.detection.generators.kql import KQLGenerator
