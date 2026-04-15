@@ -348,15 +348,15 @@ class LangGraphOrchestrator:
             logger.warning(f"Max iterations ({max_iterations}) reached")
             return "complete"
 
+        # Check if human review is needed (priority for very low confidence)
+        if overall_confidence < 0.5:
+            logger.info("Low confidence, requesting human review")
+            return "human_review"
+
         # Check if refinement is needed
         if needs_refinement and overall_confidence < 0.7:
             logger.info(f"Refinement needed (iteration {iteration + 1})")
             return "refine"
-
-        # Check if human review is needed
-        if overall_confidence < 0.5:
-            logger.info("Low confidence, requesting human review")
-            return "human_review"
 
         # Analysis complete
         logger.info("Analysis complete")
