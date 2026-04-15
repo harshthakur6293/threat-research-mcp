@@ -274,9 +274,15 @@ class LangGraphOrchestrator:
                 confidences.append(state["detections"].get("confidence", 0))
 
             overall_confidence = sum(confidences) / len(confidences) if confidences else 0
+            needs_refinement = overall_confidence < 0.7
 
             agent_history = state.get("agent_history", [])
             agent_history.append("reviewer")
+
+            # Increment iteration if refinement is needed
+            iteration = state.get("iteration", 0)
+            if needs_refinement:
+                iteration += 1
 
             return {
                 "review_report": {
@@ -288,7 +294,8 @@ class LangGraphOrchestrator:
                     },
                     "confidence": overall_confidence,
                 },
-                "needs_refinement": overall_confidence < 0.7,
+                "needs_refinement": needs_refinement,
+                "iteration": iteration,
                 "agent_history": agent_history,
             }
 
@@ -343,9 +350,7 @@ class LangGraphOrchestrator:
 
         # Check if refinement is needed
         if needs_refinement and overall_confidence < 0.7:
-            # Increment iteration
-            state["iteration"] = iteration + 1
-            logger.info(f"Refinement needed (iteration {state['iteration']})")
+            logger.info(f"Refinement needed (iteration {iteration + 1})")
             return "refine"
 
         # Check if human review is needed

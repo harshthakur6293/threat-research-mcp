@@ -174,6 +174,8 @@ class TestLangGraphOrchestrator:
         # Create a reviewer that always returns low confidence
         class LowConfidenceReviewer(BaseAgent):
             def execute(self, state: ThreatAnalysisState) -> Dict[str, Any]:
+                # Increment iteration on each execution
+                iteration = state.get("iteration", 0) + 1
                 return {
                     "review_report": {
                         "agent": "Low Confidence Reviewer",
@@ -185,6 +187,7 @@ class TestLangGraphOrchestrator:
                         "confidence": 0.5,
                     },
                     "needs_refinement": True,
+                    "iteration": iteration,
                     "agent_history": self._get_updated_history(state),
                 }
 
