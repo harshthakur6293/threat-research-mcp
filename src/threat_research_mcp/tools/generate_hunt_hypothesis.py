@@ -181,7 +181,7 @@ _PLAYBOOK: dict[str, dict[str, Any]] = {
                 "hypothesis": "POST requests to .aspx/.php/.jsp files not in known-good application paths, especially with cmd/exec parameters.",
                 "splunk": 'index=iis cs_method=POST (cs_uri_stem="*.aspx" OR cs_uri_stem="*.php" OR cs_uri_stem="*.jsp") | where NOT match(cs_uri_stem, "(?i)(login|search|api)") | stats count by c_ip, cs_uri_stem | where count > 5',
                 "kql":    'W3CIISLog | where csMethod == "POST" and (csUriStem endswith ".aspx" or csUriStem endswith ".php") | summarize count() by cIP, csUriStem',
-                "elastic": 'http.request.method:POST AND url.path:(*\.aspx OR *\.php OR *\.jsp) AND NOT url.path:*(login|api)*',
+                "elastic": r'http.request.method:POST AND url.path:(*\.aspx OR *\.php OR *\.jsp) AND NOT url.path:*(login|api)*',
                 "sigma_logsource": "webserver",
             },
         },
