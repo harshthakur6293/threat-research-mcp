@@ -1,41 +1,65 @@
-"""Real IOC enrichment via VirusTotal, AlienVault OTX, and AbuseIPDB.
+"""Real IOC enrichment via VirusTotal, AlienVault OTX, AbuseIPDB, and URLhaus.
 
 All API keys are read from environment variables — never hardcoded.
 Each source is optional: if the key is absent the source is skipped.
 Results are merged into a single dict with a summary reputation field.
+
+Uses `requests` (not urllib) to avoid bandit B310 — all outbound URLs are
+hardcoded HTTPS endpoints, never derived from user input.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import urllib.request
-import urllib.error
+import re
 from typing import Any
+
+try:
+    import requests as _requests
+    _REQUESTS_AVAILABLE = True
+except ImportError:
+    _REQUESTS_AVAILABLE = False
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _get(url: str, headers: dict[str, str], timeout: int = 10) -> dict[str, Any] | None:
-    req = urllib.request.Request(url, headers=headers)
+    """GET a hardcoded HTTPS endpoint and return parsed JSON."""
+    if not _REQUESTS_AVAILABLE:
+        return {"_error": "requests library not installed (pip install requests)"}
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as exc:
-        return {"_error": f"HTTP {exc.code}", "_source_url": url}
+        resp = _requests.get(url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except _requests.HTTPError as exc:
+        return {"_error": f"HTTP {exc.response.status_code}", "_source_url": url}
     except Exception as exc:
         return {"_error": str(exc), "_source_url": url}
 
 
+def _post(url: str, payload: dict[str, Any], headers: dict[str, str], timeout: int = 10) -> dict[str, Any] | None:
+    """POST to a hardcoded HTTPS endpoint and return parsed JSON."""
+    if not _REQUESTS_AVAILABLE:
+        return {"_error": "requests library not installed (pip install requests)"}
+    try:
+        resp = _requests.post(url, json=payload, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except _requests.HTTPError as exc:
+        return {"_error": f"HTTP {exc.response.status_code}", "_source_url": url}
+    except Exception:
+        return None
+
+
 def _ioc_type(value: str) -> str:
-    import re
     if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", value):
         return "ip"
     if re.match(r"^[0-9a-fA-F]{32}$", value) or re.match(r"^[0-9a-fA-F]{40}$", value) or re.match(r"^[0-9a-fA-F]{64}$", value):
         return "hash"
     if re.match(r"^https?://", value):
         return "url"
-    if re.match(r"^[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(\.[a-zA-Z]{2,})?$", value):
+    if re.match(r"^[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$", value):
         return "domain"
     return "unknown"
 
@@ -47,7 +71,6 @@ def _virustotal(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     if not key:
         return None
 
-    base = "https://www.virustotal.com/api/v3"
     path = {
         "ip":     f"/ip_addresses/{ioc}",
         "domain": f"/domains/{ioc}",
@@ -57,7 +80,7 @@ def _virustotal(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     if not path:
         return None
 
-    raw = _get(f"{base}{path}", {"x-apikey": key})
+    raw = _get(f"https://www.virustotal.com/api/v3{path}", {"x-apikey": key})
     if not raw or "_error" in raw:
         return raw
 
@@ -72,7 +95,7 @@ def _virustotal(ioc: str, ioc_type: str) -> dict[str, Any] | None:
         "total_engines": total,
         "detection_rate": f"{malicious}/{total}",
         "reputation": "malicious" if malicious > 5 else ("suspicious" if malicious > 0 else "clean"),
-        "link": f"https://www.virustotal.com/gui/{'ip-address' if ioc_type=='ip' else ioc_type}/{ioc}",
+        "link": f"https://www.virustotal.com/gui/{'ip-address' if ioc_type == 'ip' else ioc_type}/{ioc}",
     }
 
 
@@ -83,18 +106,16 @@ def _otx(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     if not key:
         return None
 
-    base = "https://otx.alienvault.com/api/v1/indicators"
-    section = "general"
     path = {
-        "ip":     f"/IPv4/{ioc}/{section}",
-        "domain": f"/domain/{ioc}/{section}",
-        "hash":   f"/file/{ioc}/{section}",
-        "url":    f"/url/{ioc}/{section}",
+        "ip":     f"/IPv4/{ioc}/general",
+        "domain": f"/domain/{ioc}/general",
+        "hash":   f"/file/{ioc}/general",
+        "url":    f"/url/{ioc}/general",
     }.get(ioc_type)
     if not path:
         return None
 
-    raw = _get(f"{base}{path}", {"X-OTX-API-KEY": key})
+    raw = _get(f"https://otx.alienvault.com/api/v1/indicators{path}", {"X-OTX-API-KEY": key})
     if not raw or "_error" in raw:
         return raw
 
@@ -140,20 +161,14 @@ def _abuseipdb(ioc: str, ioc_type: str) -> dict[str, Any] | None:
 # ── URLhaus ───────────────────────────────────────────────────────────────────
 
 def _urlhaus(ioc: str, ioc_type: str) -> dict[str, Any] | None:
-    """URLhaus is free — no API key required for basic lookups."""
+    """URLhaus is free — no API key required."""
     if ioc_type not in ("url", "domain", "ip"):
         return None
 
-    payload = json.dumps({"url" if ioc_type == "url" else "host": ioc}).encode()
-    req = urllib.request.Request(
-        "https://urlhaus-api.abuse.ch/v1/" + ("url/" if ioc_type == "url" else "host/"),
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            raw = json.loads(resp.read().decode())
-    except Exception:
+    endpoint = "https://urlhaus-api.abuse.ch/v1/" + ("url/" if ioc_type == "url" else "host/")
+    key = "url" if ioc_type == "url" else "host"
+    raw = _post(endpoint, {key: ioc}, {"Content-Type": "application/json"})
+    if not raw:
         return None
 
     if raw.get("query_status") in ("no_results", "invalid_url"):
@@ -192,10 +207,7 @@ def enrich_ioc(ioc: str) -> str:
     else:
         overall = "no_data"
 
-    configured = [
-        k for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY")
-        if os.environ.get(k)
-    ]
+    configured = [k for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY") if os.environ.get(k)]
     if ioc_type in ("url", "domain", "ip"):
         configured.append("URLhaus (free, no key)")
 
@@ -206,16 +218,13 @@ def enrich_ioc(ioc: str) -> str:
         "sources_queried": len(sources),
         "sources": sources,
         "configured_sources": configured,
-        "missing_keys": [
-            k for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY")
-            if not os.environ.get(k)
-        ],
+        "missing_keys": [k for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY") if not os.environ.get(k)],
     }, indent=2)
 
 
 def enrich_iocs_bulk(iocs: list[str]) -> str:
-    """Enrich a list of IOCs. Returns JSON array."""
-    results = [json.loads(enrich_ioc(ioc)) for ioc in iocs[:20]]  # cap at 20 to respect rate limits
+    """Enrich a list of IOCs (capped at 20). Returns JSON."""
+    results = [json.loads(enrich_ioc(ioc)) for ioc in iocs[:20]]
     return json.dumps({
         "enriched": results,
         "count": len(results),
