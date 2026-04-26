@@ -17,12 +17,14 @@ from typing import Any
 
 try:
     import requests as _requests
+
     _REQUESTS_AVAILABLE = True
 except ImportError:
     _REQUESTS_AVAILABLE = False
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _get(url: str, headers: dict[str, str], timeout: int = 10) -> dict[str, Any] | None:
     """GET a hardcoded HTTPS endpoint and return parsed JSON."""
@@ -38,7 +40,9 @@ def _get(url: str, headers: dict[str, str], timeout: int = 10) -> dict[str, Any]
         return {"_error": str(exc), "_source_url": url}
 
 
-def _post(url: str, payload: dict[str, Any], headers: dict[str, str], timeout: int = 10) -> dict[str, Any] | None:
+def _post(
+    url: str, payload: dict[str, Any], headers: dict[str, str], timeout: int = 10
+) -> dict[str, Any] | None:
     """POST to a hardcoded HTTPS endpoint and return parsed JSON."""
     if not _REQUESTS_AVAILABLE:
         return {"_error": "requests library not installed (pip install requests)"}
@@ -55,7 +59,11 @@ def _post(url: str, payload: dict[str, Any], headers: dict[str, str], timeout: i
 def _ioc_type(value: str) -> str:
     if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", value):
         return "ip"
-    if re.match(r"^[0-9a-fA-F]{32}$", value) or re.match(r"^[0-9a-fA-F]{40}$", value) or re.match(r"^[0-9a-fA-F]{64}$", value):
+    if (
+        re.match(r"^[0-9a-fA-F]{32}$", value)
+        or re.match(r"^[0-9a-fA-F]{40}$", value)
+        or re.match(r"^[0-9a-fA-F]{64}$", value)
+    ):
         return "hash"
     if re.match(r"^https?://", value):
         return "url"
@@ -66,16 +74,17 @@ def _ioc_type(value: str) -> str:
 
 # ── VirusTotal ────────────────────────────────────────────────────────────────
 
+
 def _virustotal(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     key = os.environ.get("VIRUSTOTAL_API_KEY", "")
     if not key:
         return None
 
     path = {
-        "ip":     f"/ip_addresses/{ioc}",
+        "ip": f"/ip_addresses/{ioc}",
         "domain": f"/domains/{ioc}",
-        "hash":   f"/files/{ioc}",
-        "url":    f"/urls/{ioc}",
+        "hash": f"/files/{ioc}",
+        "url": f"/urls/{ioc}",
     }.get(ioc_type)
     if not path:
         return None
@@ -94,12 +103,15 @@ def _virustotal(ioc: str, ioc_type: str) -> dict[str, Any] | None:
         "clean": stats.get("undetected", 0),
         "total_engines": total,
         "detection_rate": f"{malicious}/{total}",
-        "reputation": "malicious" if malicious > 5 else ("suspicious" if malicious > 0 else "clean"),
+        "reputation": "malicious"
+        if malicious > 5
+        else ("suspicious" if malicious > 0 else "clean"),
         "link": f"https://www.virustotal.com/gui/{'ip-address' if ioc_type == 'ip' else ioc_type}/{ioc}",
     }
 
 
 # ── AlienVault OTX ────────────────────────────────────────────────────────────
+
 
 def _otx(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     key = os.environ.get("OTX_API_KEY", "")
@@ -107,10 +119,10 @@ def _otx(ioc: str, ioc_type: str) -> dict[str, Any] | None:
         return None
 
     path = {
-        "ip":     f"/IPv4/{ioc}/general",
+        "ip": f"/IPv4/{ioc}/general",
         "domain": f"/domain/{ioc}/general",
-        "hash":   f"/file/{ioc}/general",
-        "url":    f"/url/{ioc}/general",
+        "hash": f"/file/{ioc}/general",
+        "url": f"/url/{ioc}/general",
     }.get(ioc_type)
     if not path:
         return None
@@ -123,13 +135,16 @@ def _otx(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     return {
         "source": "AlienVault OTX",
         "pulse_count": pulse_count,
-        "reputation": "malicious" if pulse_count > 3 else ("suspicious" if pulse_count > 0 else "clean"),
+        "reputation": "malicious"
+        if pulse_count > 3
+        else ("suspicious" if pulse_count > 0 else "clean"),
         "tags": raw.get("pulse_info", {}).get("tags", [])[:10],
         "link": f"https://otx.alienvault.com/indicator/{ioc_type}/{ioc}",
     }
 
 
 # ── AbuseIPDB ─────────────────────────────────────────────────────────────────
+
 
 def _abuseipdb(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     if ioc_type != "ip":
@@ -160,6 +175,7 @@ def _abuseipdb(ioc: str, ioc_type: str) -> dict[str, Any] | None:
 
 # ── URLhaus ───────────────────────────────────────────────────────────────────
 
+
 def _urlhaus(ioc: str, ioc_type: str) -> dict[str, Any] | None:
     """URLhaus is free — no API key required."""
     if ioc_type not in ("url", "domain", "ip"):
@@ -186,6 +202,7 @@ def _urlhaus(ioc: str, ioc_type: str) -> dict[str, Any] | None:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+
 def enrich_ioc(ioc: str) -> str:
     """Enrich a single IOC against all configured sources. Returns JSON."""
     ioc = ioc.strip()
@@ -207,28 +224,40 @@ def enrich_ioc(ioc: str) -> str:
     else:
         overall = "no_data"
 
-    configured = [k for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY") if os.environ.get(k)]
+    configured = [
+        k for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY") if os.environ.get(k)
+    ]
     if ioc_type in ("url", "domain", "ip"):
         configured.append("URLhaus (free, no key)")
 
-    return json.dumps({
-        "ioc": ioc,
-        "ioc_type": ioc_type,
-        "overall_reputation": overall,
-        "sources_queried": len(sources),
-        "sources": sources,
-        "configured_sources": configured,
-        "missing_keys": [k for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY") if not os.environ.get(k)],
-    }, indent=2)
+    return json.dumps(
+        {
+            "ioc": ioc,
+            "ioc_type": ioc_type,
+            "overall_reputation": overall,
+            "sources_queried": len(sources),
+            "sources": sources,
+            "configured_sources": configured,
+            "missing_keys": [
+                k
+                for k in ("VIRUSTOTAL_API_KEY", "OTX_API_KEY", "ABUSEIPDB_API_KEY")
+                if not os.environ.get(k)
+            ],
+        },
+        indent=2,
+    )
 
 
 def enrich_iocs_bulk(iocs: list[str]) -> str:
     """Enrich a list of IOCs (capped at 20). Returns JSON."""
     results = [json.loads(enrich_ioc(ioc)) for ioc in iocs[:20]]
-    return json.dumps({
-        "enriched": results,
-        "count": len(results),
-        "malicious": sum(1 for r in results if r["overall_reputation"] == "malicious"),
-        "suspicious": sum(1 for r in results if r["overall_reputation"] == "suspicious"),
-        "clean": sum(1 for r in results if r["overall_reputation"] == "clean"),
-    }, indent=2)
+    return json.dumps(
+        {
+            "enriched": results,
+            "count": len(results),
+            "malicious": sum(1 for r in results if r["overall_reputation"] == "malicious"),
+            "suspicious": sum(1 for r in results if r["overall_reputation"] == "suspicious"),
+            "clean": sum(1 for r in results if r["overall_reputation"] == "clean"),
+        },
+        indent=2,
+    )

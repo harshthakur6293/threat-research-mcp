@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/harshthakur6293/threat-research-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/harshthakur6293/threat-research-mcp/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-36%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-72%20passing-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A **Model Context Protocol (MCP) server** for threat intelligence analysis and detection engineering. Built for security analysts, threat hunters, and detection engineers who want to turn raw threat feeds into actionable hunt hypotheses and detection rules — without relying on external SaaS platforms.
@@ -25,13 +25,24 @@ A **Model Context Protocol (MCP) server** for threat intelligence analysis and d
   100+ keyword index across all 14 ATT&CK tactics
   → pairs with mitre-attack-mcp for deep technique context
         ↓
+[Declare Your Environment]
+  list_log_sources() → pick your log source keys
+  sysmon · windows_events · proxy · dns · email_gateway · edr
+        ↓
 [Generate Hunt Hypotheses]
-  Technique + your log sources → specific, actionable hypotheses
+  Technique + YOUR log sources → specific, actionable hypotheses
   Ready-to-run SPL (Splunk) · KQL (Sentinel) · Elastic queries
         ↓
-[Generate Detections]
-  Sigma rules · per-technique templates
-  → pairs with Security-Detections-MCP to check existing coverage
+[Generate Detections — all four formats]
+  Sigma rules    → sigma_for_technique / sigma_bundle_for_techniques
+  KQL rules      → kql_for_technique  (Microsoft Sentinel)
+  SPL rules      → spl_for_technique  (Splunk)
+  Elastic rules  → eql_for_technique  (Kibana Detection Engine)
+  YARA rules     → yara_for_technique (file/memory scanning)
+        ↓
+[One-Shot Pipeline]
+  run_pipeline_tool(text, sources_config, log_sources)
+  → all of the above in a single Claude call
 ```
 
 **Every tool is deterministic and offline-first.** No LLM calls are made inside this MCP — Claude (or your AI assistant) is the orchestrator. This MCP is the toolbox.
@@ -61,6 +72,13 @@ A **Model Context Protocol (MCP) server** for threat intelligence analysis and d
 |---|---|
 | `map_ttp(text)` | Map free-form threat text to ATT&CK technique IDs, names, tactics, and evidence |
 
+### Full Pipeline (single call)
+
+| Tool | What it does |
+|---|---|
+| `run_pipeline_tool(text, sources_config, log_sources, enrich)` | One call: feed ingestion → IOC extraction → enrichment → TTP mapping → hunt hypotheses → Sigma rules. Pass your log source keys to filter results to your environment. |
+| `list_log_sources_tool()` | Catalog of all available log source keys + environment presets (windows_sysmon, network, perimeter, edr). Use these with `hunt_for_techniques` and `run_pipeline_tool`. |
+
 ### Hunt Hypothesis Generation
 
 | Tool | What it does |
@@ -68,7 +86,7 @@ A **Model Context Protocol (MCP) server** for threat intelligence analysis and d
 | `hunt_from_intel(text)` | Full pipeline: text → techniques → hypotheses + SIEM queries |
 | `hunt_for_techniques(technique_ids, log_sources)` | Given technique IDs, get hypotheses + SPL/KQL/Elastic per log source |
 
-### Detection Generation
+### Detection Generation — Sigma
 
 | Tool | What it does |
 |---|---|
@@ -76,6 +94,21 @@ A **Model Context Protocol (MCP) server** for threat intelligence analysis and d
 | `sigma_for_technique(technique_id)` | Generate a production-ready Sigma rule for a specific ATT&CK technique |
 | `sigma_bundle_for_techniques(technique_ids)` | Generate Sigma rules for multiple techniques at once |
 | `validate_sigma_rule(yaml_text)` | Validate Sigma YAML structure offline (no Sigma CLI required) |
+
+### Detection Generation — Native SIEM formats
+
+| Tool | What it does |
+|---|---|
+| `kql_for_technique(technique_id)` | KQL Analytics Rule for Microsoft Sentinel — with display name, severity, query frequency |
+| `spl_for_technique(technique_id)` | SPL Saved Search for Splunk — with cron schedule, drilldown, recommended actions |
+| `eql_for_technique(technique_id)` | Elastic Security rule — with risk score, threat mapping, Kibana Detection Engine format |
+
+### Detection Generation — YARA
+
+| Tool | What it does |
+|---|---|
+| `yara_for_technique(technique_id)` | YARA file-scanning rule for a technique (covers T1059.001, T1003.001, T1055, T1027, T1486, T1505.003, T1566.001, T1071.001, T1547.001, T1053.005) |
+| `generate_yara(rule_name, strings_csv, condition)` | Build a custom YARA rule from IOC strings (hashes, malware strings, file patterns) |
 
 ### Coverage & Gap Analysis
 
@@ -110,15 +143,25 @@ This server is designed to work alongside:
 
 Neither is required. This MCP works fully standalone.
 
-### Example end-to-end workflow with all three
+### Fast path — one call does everything
 
-1. You paste a threat report into Claude
-2. Claude calls `extract_iocs` → gets IOCs → calls `enrich_ioc_tool` for each one
-3. Claude calls `map_ttp` → identifies ATT&CK techniques in the report
-4. Claude calls `mitre-attack-mcp: get_technique` for rich context on each technique
-5. Claude calls `hunt_for_techniques` → gets hunt hypotheses + ready queries for your SIEM
-6. Claude calls `Security-Detections-MCP: list_by_mitre` → checks existing detection coverage
-7. Claude calls `sigma_for_technique` for any gaps → new detection rules ready to deploy
+```
+"Connect to this TAXII feed, pull the latest intel, and give me hunt hypotheses
+and detection rules for my Splunk + Sysmon environment."
+```
+
+Claude calls `run_pipeline_tool(sources_config="sources.yaml", log_sources="sysmon_process,script_block_logging,windows_event_4624")` and gets back IOCs, techniques, hypotheses, and Sigma rules in one shot.
+
+### Step-by-step workflow with all three MCPs
+
+1. Paste a threat report into Claude
+2. Claude calls `run_pipeline_tool(text=..., log_sources="sysmon_process,dns_logs")` → IOCs + techniques + hypotheses + Sigma in one call
+3. Claude calls `enrich_ioc_tool` for any high-priority IOCs
+4. Claude calls `mitre-attack-mcp: get_technique` for rich technique context (mitigations, group attribution)
+5. Claude calls `kql_for_technique` / `spl_for_technique` / `eql_for_technique` → SIEM-native rules ready to paste in
+6. Claude calls `yara_for_technique` → file-scanning YARA rules for EDR/sandbox
+7. Claude calls `Security-Detections-MCP: list_by_mitre` → checks existing coverage
+8. Claude calls `detection_coverage_gap` → pinpoints exactly which techniques have no detection yet
 
 ---
 
