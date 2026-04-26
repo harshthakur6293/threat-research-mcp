@@ -1,29 +1,39 @@
+"""Threat Research MCP — deterministic threat intelligence tools for Claude.
+
+Pipeline:
+  Feed Ingestion → IOC Extraction → TTP Mapping → Hunt Hypotheses → Detections
+
+Pairs naturally with:
+  - MHaggis/mitre-attack-mcp  (technique lookup, group attribution, mitigations)
+  - MHaggis/Security-Detections-MCP  (search 8,200+ existing rules, coverage gaps)
+"""
+
 from __future__ import annotations
 
 from threat_research_mcp.tools.extract_iocs import extract_iocs_json
+from threat_research_mcp.tools.map_attack import map_attack
+from threat_research_mcp.tools.generate_sigma import (
+    generate_sigma,
+    generate_sigma_for_technique,
+    generate_sigma_bundle,
+)
+from threat_research_mcp.tools.generate_hunt_hypothesis import (
+    generate_hunt_hypothesis,
+    generate_hunt_hypotheses_for_techniques,
+)
+from threat_research_mcp.tools.validate_sigma import validate_sigma_json
+from threat_research_mcp.tools.detection_gap_analysis import detection_gap_analysis
+from threat_research_mcp.tools.reconstruct_timeline import reconstruct_timeline
 from threat_research_mcp.tools.ingest_tools import (
     ingest_from_config_path_json,
     intel_to_analysis_product_json,
 )
-from threat_research_mcp.tools.summarize_threat_report import summarize_threat_report
-from threat_research_mcp.tools.map_attack import map_attack
-from threat_research_mcp.tools.generate_sigma import generate_sigma
-from threat_research_mcp.tools.explain_log import explain_log
-from threat_research_mcp.tools.reconstruct_timeline import reconstruct_timeline
-from threat_research_mcp.tools.generate_hunt_hypothesis import generate_hunt_hypothesis
-from threat_research_mcp.tools.detection_gap_analysis import detection_gap_analysis
-from threat_research_mcp.tools.validate_sigma import validate_sigma_json
 from threat_research_mcp.tools.intel_storage_tools import (
     get_stored_analysis_product_json,
     search_analysis_product_history_json,
     search_ingested_intel_json,
 )
-from threat_research_mcp.tools.recommend_log_sources import recommend_log_sources_json
-from threat_research_mcp.tools.intel_to_log_sources import intel_to_log_sources_json
-from threat_research_mcp.tools.enhanced_analysis import (
-    enhanced_intel_analysis,
-    get_integration_status,
-)
+from threat_research_mcp.enrichment.enrich import enrich_ioc, enrich_iocs_bulk
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -34,91 +44,204 @@ except Exception:
 if FastMCP:
     mcp = FastMCP("Threat Research MCP")
 
-    @mcp.tool()
-    def extract_iocs(text: str) -> str:
-        return extract_iocs_json(text)
+    # ── Feed Ingestion ────────────────────────────────────────────────────────
 
     @mcp.tool()
-    def summarize(text: str) -> str:
-        return summarize_threat_report(text)
+    def ingest_feed(config_path: str) -> str:
+        """Ingest threat intelligence feeds from a YAML/JSON sources config file.
 
-    @mcp.tool()
-    def attack_map(text: str) -> str:
-        return map_attack(text)
+        Supports TAXII 2.1, RSS/Atom, HTML reports, and local files.
+        See configs/sources.example.yaml for format.
 
-    @mcp.tool()
-    def sigma(title: str, behavior: str, logsource: str = "process_creation") -> str:
-        return generate_sigma(title, behavior, logsource)
-
-    @mcp.tool()
-    def explain(text: str) -> str:
-        return explain_log(text)
-
-    @mcp.tool()
-    def timeline(text: str) -> str:
-        return reconstruct_timeline(text)
-
-    @mcp.tool()
-    def hunt(text: str) -> str:
-        return generate_hunt_hypothesis(text)
-
-    @mcp.tool()
-    def coverage(techniques_csv: str, detections_csv: str) -> str:
-        return detection_gap_analysis(techniques_csv, detections_csv)
-
-    @mcp.tool()
-    def validate_sigma(yaml_text: str) -> str:
-        """Check Sigma YAML for required fields (title, logsource, detection); returns JSON {valid, errors}."""
-        return validate_sigma_json(yaml_text)
-
-    @mcp.tool()
-    def ingest_sources(config_path: str) -> str:
-        """Load a YAML or JSON sources file (see configs/sources.example.yaml) and return normalized documents."""
+        Returns normalized documents ready for IOC extraction and TTP mapping.
+        """
         return ingest_from_config_path_json(config_path)
 
     @mcp.tool()
-    def intel_to_analysis_product(
+    def analyze_intel(
         text: str = "",
         sources_config_path: str = "",
-        workflow: str = "threat_research",
     ) -> str:
-        """Merge optional analyst `text` with documents from `sources_config_path`, then return AnalysisProduct JSON."""
+        """Run the full pipeline on threat intel text and/or ingested feed documents.
+
+        Extracts IOCs and maps ATT&CK techniques from the combined input.
+        Pass text, a sources_config_path, or both.
+
+        Returns: AnalysisProduct JSON with IOCs, techniques, and metadata.
+        """
         return intel_to_analysis_product_json(
             text=text,
             sources_config_path=sources_config_path,
-            workflow=workflow,
+            workflow="threat_research",
         )
 
-    @mcp.tool()
-    def analysis_product(text: str, workflow: str = "threat_research") -> str:
-        """Run the workflow on `text` only; return canonical AnalysisProduct JSON (v1 schema)."""
-        return intel_to_analysis_product_json(text=text, sources_config_path="", workflow=workflow)
+    # ── IOC Extraction ────────────────────────────────────────────────────────
 
     @mcp.tool()
-    def search_ingested_intel(
-        text_query: str = "",
-        source_name: str = "",
-        fingerprint: str = "",
-        limit: int = 30,
-        offset: int = 0,
+    def extract_iocs(text: str) -> str:
+        """Extract all indicators of compromise from free-form text.
+
+        Finds: IPv4 addresses, domains, URLs, MD5/SHA1/SHA256 hashes, email addresses.
+        Returns JSON with each IOC type as a deduplicated list.
+        """
+        return extract_iocs_json(text)
+
+    @mcp.tool()
+    def enrich_ioc_tool(ioc: str) -> str:
+        """Enrich a single IOC (IP, domain, URL, or hash) against threat intel sources.
+
+        Queries: VirusTotal, AlienVault OTX, AbuseIPDB, URLhaus (free).
+        API keys read from env: VIRUSTOTAL_API_KEY, OTX_API_KEY, ABUSEIPDB_API_KEY.
+        URLhaus requires no key. All sources are optional — works without any keys.
+
+        Returns: JSON with per-source reputation, detection rates, and overall verdict.
+        """
+        return enrich_ioc(ioc)
+
+    @mcp.tool()
+    def enrich_iocs_tool(iocs_csv: str) -> str:
+        """Enrich multiple IOCs (comma-separated) in bulk. Capped at 20 to respect rate limits.
+
+        Returns: JSON with per-IOC results and aggregate malicious/suspicious/clean counts.
+        """
+        iocs = [i.strip() for i in iocs_csv.split(",") if i.strip()]
+        return enrich_iocs_bulk(iocs)
+
+    # ── TTP Mapping ───────────────────────────────────────────────────────────
+
+    @mcp.tool()
+    def map_ttp(text: str) -> str:
+        """Map free-form threat intelligence text to MITRE ATT&CK techniques.
+
+        Uses a 100+ keyword index covering all ATT&CK tactics.
+        For deeper technique context (descriptions, mitigations, data sources,
+        threat actor attribution), pair with mitre-attack-mcp.
+
+        Returns: JSON with matched technique IDs, names, tactics, ATT&CK URLs, and evidence.
+        """
+        return map_attack(text)
+
+    # ── Hunt Hypothesis Generation ────────────────────────────────────────────
+
+    @mcp.tool()
+    def hunt_from_intel(text: str) -> str:
+        """Generate hunt hypotheses directly from threat intel text.
+
+        Internally maps text to ATT&CK techniques, then returns actionable
+        hunt hypotheses with ready-to-run queries for every available log source.
+
+        Returns: JSON with hypotheses, SPL/KQL/Elastic queries per technique+log source.
+        """
+        return generate_hunt_hypothesis(text)
+
+    @mcp.tool()
+    def hunt_for_techniques(
+        technique_ids: str,
+        log_sources: str = "",
     ) -> str:
-        """Search persisted normalized documents (requires THREAT_RESEARCH_MCP_DB)."""
-        return search_ingested_intel_json(
-            text_query=text_query,
-            source_name=source_name,
-            fingerprint=fingerprint,
-            limit=limit,
-            offset=offset,
-        )
+        """Generate hunt hypotheses for specific ATT&CK technique IDs.
+
+        Args:
+            technique_ids: Comma-separated technique IDs (e.g. "T1059.001,T1003.001")
+            log_sources: Optional comma-separated log source filter
+                         (e.g. "sysmon_process,script_block_logging,dns_logs").
+                         Leave empty to get all available log sources.
+
+        Returns: JSON with per-technique hypotheses and SPL/KQL/Elastic queries.
+        """
+        ids = [t.strip() for t in technique_ids.split(",") if t.strip()]
+        src_filter = [s.strip() for s in log_sources.split(",") if s.strip()] or None
+        return generate_hunt_hypotheses_for_techniques(ids, src_filter)
+
+    # ── Detection Generation ──────────────────────────────────────────────────
 
     @mcp.tool()
-    def search_analysis_product_history(
+    def generate_sigma_rule(
+        title: str,
+        behavior: str,
+        logsource: str = "process_creation",
+    ) -> str:
+        """Generate a Sigma detection rule from a title and behavior description.
+
+        Args:
+            title: Rule title (e.g. "Suspicious PowerShell Download Cradle")
+            behavior: The specific behavior to detect (used in CommandLine contains)
+            logsource: Sigma logsource category (default: process_creation)
+
+        Returns: JSON with rule_yaml, valid flag, and any validation errors.
+        """
+        return generate_sigma(title, behavior, logsource)
+
+    @mcp.tool()
+    def sigma_for_technique(
+        technique_id: str,
+        environment: str = "windows",
+    ) -> str:
+        """Generate a ready-to-use Sigma rule for a specific ATT&CK technique ID.
+
+        Covers: T1059.001, T1003.001, T1071.001, T1053.005, T1547.001, T1505.003,
+                T1566.001, T1021.001, T1021.002, T1078, T1110.003, T1046, T1486,
+                T1558.003, T1190, T1055 and more.
+
+        Returns: JSON with technique_id, technique_name, rule_yaml, and rule dict.
+        """
+        return generate_sigma_for_technique(technique_id, environment)
+
+    @mcp.tool()
+    def sigma_bundle_for_techniques(technique_ids: str) -> str:
+        """Generate Sigma rules for multiple ATT&CK technique IDs at once.
+
+        Args:
+            technique_ids: Comma-separated technique IDs (e.g. "T1059.001,T1003.001")
+
+        Returns: JSON with a list of rules and total count.
+        """
+        ids = [t.strip() for t in technique_ids.split(",") if t.strip()]
+        return generate_sigma_bundle(ids)
+
+    @mcp.tool()
+    def validate_sigma_rule(yaml_text: str) -> str:
+        """Validate a Sigma rule YAML for required fields (offline, no CLI needed).
+
+        Checks: title, logsource (category/product/service), detection, condition.
+        Returns JSON: {valid: bool, errors: [str]}.
+        """
+        return validate_sigma_json(yaml_text)
+
+    # ── Coverage & Gap Analysis ───────────────────────────────────────────────
+
+    @mcp.tool()
+    def detection_coverage_gap(
+        techniques_csv: str,
+        detections_csv: str,
+    ) -> str:
+        """Identify ATT&CK technique gaps — techniques you track but lack detections for.
+
+        Args:
+            techniques_csv: Comma-separated technique IDs observed/tracked
+            detections_csv: Comma-separated technique IDs you have detections for
+
+        Returns: JSON with covered, missing, and coverage percentage.
+
+        Tip: Pair with Security-Detections-MCP (list_by_mitre) to populate detections_csv
+        from 8,200+ existing community rules.
+        """
+        return detection_gap_analysis(techniques_csv, detections_csv)
+
+    # ── Storage & Search ──────────────────────────────────────────────────────
+
+    @mcp.tool()
+    def search_intel_history(
         text_query: str = "",
         workflow: str = "",
         limit: int = 30,
         offset: int = 0,
     ) -> str:
-        """Search persisted analysis products by narrative or JSON substring."""
+        """Search previously analyzed intel products stored in the local SQLite database.
+
+        Requires THREAT_RESEARCH_MCP_DB environment variable to be set.
+        Returns: JSON list of matching analysis products with row IDs.
+        """
         return search_analysis_product_history_json(
             text_query=text_query,
             workflow=workflow,
@@ -127,111 +250,46 @@ if FastMCP:
         )
 
     @mcp.tool()
-    def get_stored_analysis_product(row_id: int) -> str:
-        """Load full AnalysisProduct JSON by `row_id` from search_analysis_product_history results."""
+    def get_intel_by_id(row_id: int) -> str:
+        """Retrieve a full stored analysis product by its row ID from search_intel_history.
+
+        Returns: Full AnalysisProduct JSON.
+        """
         return get_stored_analysis_product_json(row_id)
 
     @mcp.tool()
-    def recommend_log_sources(
-        technique_ids: str,
-        environment: str = "hybrid",
-        siem_platforms: str = "splunk,sentinel,elastic",
+    def search_ingested_docs(
+        text_query: str = "",
+        source_name: str = "",
+        limit: int = 30,
+        offset: int = 0,
     ) -> str:
-        """Get specific log source recommendations and ready-to-run hunt queries for ATT&CK techniques.
+        """Search normalized documents ingested from threat intel feeds.
 
-        Args:
-            technique_ids: Comma-separated ATT&CK technique IDs (e.g., "T1059.001,T1566.001")
-            environment: Target environment (aws, azure, gcp, on-prem, hybrid)
-            siem_platforms: Comma-separated SIEM platforms (splunk, sentinel, elastic, athena, chronicle)
-
-        Returns:
-            JSON with prioritized log sources, SIEM-specific queries, and deployment checklist
+        Requires THREAT_RESEARCH_MCP_DB environment variable to be set.
+        Returns: JSON list of matching documents with source metadata.
         """
-        return recommend_log_sources_json(technique_ids, environment, siem_platforms)
-
-    @mcp.tool()
-    def intel_to_log_sources(
-        intel_text: str,
-        environment: str = "hybrid",
-        siem_platforms: str = "splunk,sentinel,elastic",
-        manual_techniques: str = "",
-    ) -> str:
-        """Automatically analyze threat intel, detect ATT&CK techniques, and get log source recommendations.
-
-        This is the complete automated pipeline:
-        1. Analyze threat intelligence text
-        2. Auto-detect relevant ATT&CK techniques (can be supplemented with manual_techniques)
-        3. Generate log source recommendations
-        4. Provide ready-to-run SIEM queries
-        5. Create prioritized deployment checklist
-
-        Args:
-            intel_text: Threat intelligence text to analyze (incident reports, IOCs, TTPs, etc.)
-            environment: Target environment (aws, azure, gcp, on-prem, hybrid)
-            siem_platforms: Comma-separated SIEM platforms (splunk, sentinel, elastic, athena, chronicle)
-            manual_techniques: Optional comma-separated technique IDs to supplement auto-detection
-
-        Returns:
-            JSON with detected techniques, log sources, queries, and deployment guidance
-
-        Example:
-            intel_text="ICP Canister C2 using blockchain for censorship-resistant command and control"
-            Returns: Detected techniques (T1071.001, T1090), log sources, and queries
-        """
-        return intel_to_log_sources_json(intel_text, environment, siem_platforms, manual_techniques)
-
-    @mcp.tool()
-    def enhanced_intel_analysis_tool(
-        intel_text: str,
-        environment: str = "hybrid",
-        siem_platforms: str = "splunk,sentinel,elastic",
-        enrich_iocs: bool = True,
-        check_coverage: bool = True,
-        generate_behavioral_hunts: bool = True,
-    ) -> str:
-        """Enhanced threat intelligence analysis using all available MCP integrations.
-
-        This tool orchestrates multiple MCPs to provide comprehensive analysis:
-        - Auto-detect ATT&CK techniques (built-in)
-        - Generate log sources and SIEM queries (built-in)
-        - Enrich IOCs (fastmcp-threatintel, if available)
-        - Check existing coverage (Security-Detections-MCP, if available)
-        - Generate behavioral hunts (threat-hunting-mcp, if available)
-
-        All integrations are OPTIONAL. The tool works standalone and gracefully
-        degrades when optional MCPs are not installed.
-
-        Args:
-            intel_text: Threat intelligence text to analyze
-            environment: Target environment (aws, azure, gcp, on-prem, hybrid)
-            siem_platforms: Comma-separated SIEM platforms
-            enrich_iocs: Enable IOC enrichment (requires fastmcp-threatintel)
-            check_coverage: Enable coverage check (requires Security-Detections-MCP)
-            generate_behavioral_hunts: Enable behavioral hunts (requires threat-hunting-mcp)
-
-        Returns:
-            JSON with comprehensive analysis including all available integrations
-        """
-        return enhanced_intel_analysis(
-            intel_text=intel_text,
-            environment=environment,
-            siem_platforms=siem_platforms,
-            enrich_iocs=enrich_iocs,
-            check_coverage=check_coverage,
-            generate_behavioral_hunts=generate_behavioral_hunts,
+        return search_ingested_intel_json(
+            text_query=text_query,
+            source_name=source_name,
+            fingerprint="",
+            limit=limit,
+            offset=offset,
         )
 
-    @mcp.tool()
-    def get_integration_status_tool() -> str:
-        """Get status of all optional MCP integrations.
+    # ── Utilities ─────────────────────────────────────────────────────────────
 
-        Returns:
-            JSON with integration availability and setup instructions
+    @mcp.tool()
+    def timeline(text: str) -> str:
+        """Sort log lines or event notes into chronological order.
+
+        Parses timestamps in common formats and returns events ordered by time.
+        Returns: JSON with sorted events and any lines that couldn't be parsed.
         """
-        return get_integration_status()
+        return reconstruct_timeline(text)
 
 
 def main() -> None:
     if FastMCP is None:
-        raise RuntimeError("mcp package not available. Install dependencies.")
+        raise RuntimeError("mcp package not available. Install with: pip install mcp")
     mcp.run(transport="stdio")

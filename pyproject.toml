@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "threat-research-mcp"
-version = "0.5.0-dev"
-description = "Defensive security MCP server with multi-agent orchestration."
+version = "1.0.0"
+description = "Threat research MCP — feed ingestion, IOC extraction, ATT&CK mapping, hunt hypothesis generation, and detection rule generation."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -14,10 +14,7 @@ dependencies = [
   "pydantic>=2.7.0",
   "PyYAML>=6.0.1",
   "mcp>=1.8.0; python_version >= '3.10'",
-  "langgraph>=0.2.0; python_version >= '3.9'",
-  "langchain>=0.3.0; python_version >= '3.9'",
-  "langchain-core>=0.3.0; python_version >= '3.9'",
-  "langchain-openai>=0.2.0; python_version >= '3.9'",
+  "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
@@ -50,30 +47,11 @@ omit = [
     "src/threat_research_mcp/__main__.py",
     "src/threat_research_mcp/cli.py",
     "src/threat_research_mcp/server.py",
-    "src/threat_research_mcp/coverage/*",
-    "src/threat_research_mcp/hunt/*",
-    "src/threat_research_mcp/integrations/*",
-    "src/threat_research_mcp/memory/*",
-    "src/threat_research_mcp/observability/*",
-    "src/threat_research_mcp/policy/*",
-    "src/threat_research_mcp/providers/*",
-    "src/threat_research_mcp/resources/*",
-    "src/threat_research_mcp/retrieval/*",
-    "src/threat_research_mcp/tenancy/*",
     "src/threat_research_mcp/storage/repositories/*",
     "src/threat_research_mcp/storage/migrations.py",
     "src/threat_research_mcp/storage/models.py",
-    "src/threat_research_mcp/orchestrator/approvals.py",
-    "src/threat_research_mcp/orchestrator/trace.py",
     "src/threat_research_mcp/tools/intel_storage_tools.py",
-    "src/threat_research_mcp/tools/detection_gap_analysis.py",
-    "src/threat_research_mcp/tools/map_data_sources.py",
-    "src/threat_research_mcp/utils/files.py",
-    "src/threat_research_mcp/utils/ids.py",
-    "src/threat_research_mcp/utils/text.py",
-    "src/threat_research_mcp/utils/time_utils.py",
-    "src/threat_research_mcp/utils/validation.py",
-    "src/threat_research_mcp/utils/yaml_utils.py",
+    "src/threat_research_mcp/utils/*",
 ]
 
 [tool.coverage.report]

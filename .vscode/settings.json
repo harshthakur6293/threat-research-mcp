@@ -1,5 +1,34 @@
 {
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": ".github/workflows/*.{yml,yaml}"
-  }
+  },
+  "terminal.integrated.sendKeyBindingsToShell": true,
+  "terminal.integrated.commandsToSkipShell": [],
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.shellIntegration.decorationsEnabled": "both",
+  "terminal.integrated.defaultProfile.windows": "Git Bash",
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "icon": "terminal-powershell"
+    },
+    "Command Prompt": {
+      "path": "${env:windir}\\System32\\cmd.exe",
+      "icon": "terminal-cmd"
+    },
+    "Git Bash": {
+      "path": "C:\\Program Files\\Git\\bin\\bash.exe",
+      "args": ["-i"],
+      "icon": "terminal-bash"
+    }
+  },
+  "terminal.integrated.env.windows": {
+    "PATH": "C:\\Users\\harsh\\AppData\\Roaming\\npm;C:\\Users\\harsh\\AppData\\Local\\Programs\\Microsoft VS Code\\bin;C:\\Program Files\\Git\\bin;C:\\Program Files\\Git\\cmd;C:\\Users\\harsh\\AppData\\Local\\Programs\\Python\\Python312;C:\\Users\\harsh\\AppData\\Local\\Programs\\Python\\Python312\\Scripts;${env:PATH}"
+  },
+  "chat.editor.enabled": true,
+  "github.copilot.chat.codeActions.enabled": true,
+  "github.copilot.chat.inlineChat.enabled": true,
+  "workbench.action.terminal.focusAccessibleBuffer": true,
+  "claudeCode.useTerminal": true,
+  "git.path": "C:\\Program Files\\Git\\cmd\\git.exe"
 }

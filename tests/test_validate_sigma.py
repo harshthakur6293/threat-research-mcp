@@ -1,10 +1,13 @@
+import json
+
 from threat_research_mcp.tools.generate_sigma import generate_sigma
 from threat_research_mcp.tools.validate_sigma import validate_sigma_yaml
 
 
 def test_generated_sigma_passes_validator() -> None:
-    yml = generate_sigma("Test Rule", "powershell -enc", "process_creation")
-    ok, errs = validate_sigma_yaml(yml)
+    result = json.loads(generate_sigma("Test Rule", "powershell -enc", "process_creation"))
+    assert result["valid"], result["errors"]
+    ok, errs = validate_sigma_yaml(result["rule"])
     assert ok, errs
 
 
