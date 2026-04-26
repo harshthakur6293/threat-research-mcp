@@ -353,10 +353,213 @@ _PLAYBOOK: dict[str, dict[str, Any]] = {
             },
         },
     },
+    # ── Supply Chain / CI-CD ──────────────────────────────────────────────────
+    "T1195.001": {
+        "name": "Compromise Software Supply Chain",
+        "tactic": "initial-access",
+        "log_sources": {
+            "github_actions_audit": {
+                "name": "GitHub Actions Audit Log / OIDC Token Events",
+                "hypothesis": "Malicious package published to PyPI/npm from a compromised CI account, or unexpected workflow triggered on push to main.",
+                "splunk": 'index=github_audit action=package.publish OR action=workflows.completed | where outcome="success" AND actor_ip!="" | stats count by actor, repo, package_name, actor_ip | where count=1',
+                "kql": 'GitHubAuditData_CL | where action_s in ("package.publish","workflows.completed") | where outcome_s == "success" | project TimeGenerated, actor_s, repo_s, package_s, actorIp_s',
+                "elastic": "github.audit.action:(package.publish OR workflows.completed) AND github.audit.outcome:success",
+                "sigma_logsource": "application/github",
+            },
+            "aws_cloudtrail": {
+                "name": "AWS CloudTrail — CodeBuild / CodePipeline Events",
+                "hypothesis": "Unexpected CodeBuild project start or artifact upload from an unusual IAM principal.",
+                "splunk": "index=aws_cloudtrail eventSource=codebuild.amazonaws.com eventName=StartBuild | stats count by userIdentity.arn, projectName, sourceVersion | where count=1",
+                "kql": 'AWSCloudTrail | where EventSource == "codebuild.amazonaws.com" and EventName == "StartBuild" | project TimeGenerated, UserIdentityArn, RequestParameters',
+                "elastic": "aws.cloudtrail.event_source:codebuild.amazonaws.com AND aws.cloudtrail.event_name:StartBuild",
+                "sigma_logsource": "cloud/aws/cloudtrail",
+            },
+        },
+    },
+    "T1195.002": {
+        "name": "Compromise Software Dependencies",
+        "tactic": "initial-access",
+        "log_sources": {
+            "github_actions_audit": {
+                "name": "GitHub Actions Audit Log",
+                "hypothesis": "Workflow file modified in a public repo to exfiltrate secrets or introduce a backdoored dependency.",
+                "splunk": 'index=github_audit action=workflows.run_attempt | rex field=head_branch "(?P<branch>.+)" | where branch="main" OR branch="master" | stats count by actor, repo, workflow | where count < 3',
+                "kql": 'GitHubAuditData_CL | where action_s == "workflows.run_attempt" | where headBranch_s in ("main","master") | summarize count() by actor_s, repo_s, workflow_s',
+                "elastic": "github.audit.action:workflows.run_attempt AND github.audit.head_branch:(main OR master)",
+                "sigma_logsource": "application/github",
+            },
+        },
+    },
+    # ── Cloud ─────────────────────────────────────────────────────────────────
+    "T1552.005": {
+        "name": "Cloud Instance Metadata API (IMDS)",
+        "tactic": "credential-access",
+        "log_sources": {
+            "aws_cloudtrail": {
+                "name": "AWS CloudTrail — IMDSv1 GetSessionToken / AssumeRole",
+                "hypothesis": "EC2 metadata service queried for IAM credentials by a non-standard process or from an unusual user agent.",
+                "splunk": 'index=aws_cloudtrail eventName=GetSessionToken userIdentity.type=AssumedRole | stats count by userIdentity.arn, sourceIPAddress, userAgent | where match(userAgent,"(?i)(curl|wget|python|ruby|powershell)")',
+                "kql": 'AWSCloudTrail | where EventName == "GetSessionToken" and UserIdentityType == "AssumedRole" | project TimeGenerated, UserIdentityArn, SourceIpAddress, UserAgent | where UserAgent has_any ("curl","wget","python","powershell")',
+                "elastic": "aws.cloudtrail.event_name:GetSessionToken AND aws.cloudtrail.user_identity.type:AssumedRole AND aws.cloudtrail.user_agent:(curl OR wget OR python)",
+                "sigma_logsource": "cloud/aws/cloudtrail",
+            },
+            "gcp_cloud_logging": {
+                "name": "GCP Cloud Logging — Compute Metadata Server",
+                "hypothesis": "GCE instance queried the metadata server for service account tokens from a process not in the expected baseline.",
+                "splunk": 'index=gcp_logs resource.type=gce_instance protoPayload.requestUrl="*computeMetadata*" | stats count by resource.labels.instance_id, protoPayload.authenticationInfo.principalEmail | where count > 100',
+                "kql": 'GCPCloudAudit | where ResourceType == "gce_instance" and RequestUrl has "computeMetadata" | summarize count() by InstanceId, PrincipalEmail',
+                "elastic": "gcp.audit.resource.type:gce_instance AND url.original:*computeMetadata*",
+                "sigma_logsource": "cloud/gcp",
+            },
+            "azure_activity_logs": {
+                "name": "Azure Monitor — IMDS / Managed Identity Token Requests",
+                "hypothesis": "Azure VM queried IMDS for a managed identity token; unusual caller or spike in token requests.",
+                "splunk": 'index=azure_monitor Category=AzureActivity operationName="MICROSOFT.COMPUTE/VIRTUALMACHINES/RETRIEVE TOKEN" | stats count by caller, resourceId | where count > 50',
+                "kql": 'AzureActivity | where OperationNameValue =~ "MICROSOFT.COMPUTE/VIRTUALMACHINES/RETRIEVE TOKEN" | summarize count() by Caller, ResourceId | where count_ > 50',
+                "elastic": "azure.activitylogs.operation_name:MICROSOFT.COMPUTE/VIRTUALMACHINES/RETRIEVE*TOKEN",
+                "sigma_logsource": "cloud/azure/activitylogs",
+            },
+        },
+    },
+    "T1078.004": {
+        "name": "Cloud Accounts",
+        "tactic": "initial-access",
+        "log_sources": {
+            "aws_cloudtrail": {
+                "name": "AWS CloudTrail — AssumeRole / ConsoleLogin",
+                "hypothesis": "IAM role assumed from an unexpected source IP or region; console login without MFA for privileged account.",
+                "splunk": 'index=aws_cloudtrail eventName=AssumeRole OR eventName=ConsoleLogin | where errorCode="" | stats count by userIdentity.arn, sourceIPAddress, awsRegion | where NOT match(sourceIPAddress,"^10\\.|^172\\.(1[6-9]|2[0-9]|3[01])\\.|^192\\.168\\.")',
+                "kql": 'AWSCloudTrail | where EventName in ("AssumeRole","ConsoleLogin") and isempty(ErrorCode) | where not SourceIpAddress matches regex @"^(10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)" | project TimeGenerated, UserIdentityArn, SourceIpAddress, AWSRegion',
+                "elastic": "aws.cloudtrail.event_name:(AssumeRole OR ConsoleLogin) AND NOT aws.cloudtrail.error_code:*",
+                "sigma_logsource": "cloud/aws/cloudtrail",
+            },
+            "azure_activity_logs": {
+                "name": "Azure AD Sign-In Logs — Service Principal",
+                "hypothesis": "Service principal sign-in from an IP outside the expected corporate range or with unusual application ID.",
+                "splunk": 'index=azure_aad Category=ServicePrincipalSignInLogs resultType=0 | stats count by servicePrincipalName, ipAddress, location | where NOT match(ipAddress,"^10\\.|^192\\.168\\.")',
+                "kql": 'AADServicePrincipalSignInLogs | where ResultType == 0 | where not IPAddress matches regex @"^(10\\.|192\\.168\\.)" | project TimeGenerated, ServicePrincipalName, IPAddress, Location',
+                "elastic": "azure.signinlogs.properties.service_principal_name:* AND NOT azure.signinlogs.properties.ip_address:10.*",
+                "sigma_logsource": "cloud/azure/azure.aad",
+            },
+            "gcp_cloud_logging": {
+                "name": "GCP Cloud Logging — Service Account Key Usage",
+                "hypothesis": "Service account key used from outside GCP (external IP) — potential exfiltrated credential use.",
+                "splunk": 'index=gcp_logs protoPayload.authenticationInfo.serviceAccountKeyName=* | where NOT match(protoPayload.requestMetadata.callerIp,"^(10\\.|35\\.|34\\.)")',
+                "kql": 'GCPCloudAudit | where isnotempty(ServiceAccountKeyName) | where not CallerIp matches regex @"^(10\\.|35\\.|34\\.)" | project TimeGenerated, ServiceAccountKeyName, CallerIp',
+                "elastic": "gcp.audit.authentication_info.service_account_key_name:* AND NOT source.ip:10.*",
+                "sigma_logsource": "cloud/gcp",
+            },
+        },
+    },
+    "T1530": {
+        "name": "Data from Cloud Storage",
+        "tactic": "collection",
+        "log_sources": {
+            "aws_cloudtrail": {
+                "name": "AWS CloudTrail — S3 Data Events",
+                "hypothesis": "Bulk GetObject requests on sensitive S3 buckets from an IAM principal that does not normally access them.",
+                "splunk": "index=aws_cloudtrail eventSource=s3.amazonaws.com eventName=GetObject | stats count, dc(requestParameters.key) as objects by userIdentity.arn, requestParameters.bucketName | where count > 100 | sort -count",
+                "kql": 'AWSCloudTrail | where EventSource == "s3.amazonaws.com" and EventName == "GetObject" | summarize ObjectCount=dcount(tostring(RequestParameters)), Requests=count() by UserIdentityArn, BucketName | where Requests > 100 | order by Requests desc',
+                "elastic": "aws.cloudtrail.event_source:s3.amazonaws.com AND aws.cloudtrail.event_name:GetObject",
+                "sigma_logsource": "cloud/aws/cloudtrail",
+            },
+            "gcp_cloud_logging": {
+                "name": "GCP Cloud Logging — GCS Data Access",
+                "hypothesis": "Mass object downloads from GCS buckets tagged as sensitive by an unexpected service account.",
+                "splunk": "index=gcp_logs resource.type=gcs_bucket protoPayload.methodName=storage.objects.get | stats count by protoPayload.authenticationInfo.principalEmail, resource.labels.bucket_name | where count > 100",
+                "kql": 'GCPCloudAudit | where ResourceType == "gcs_bucket" and MethodName == "storage.objects.get" | summarize count() by PrincipalEmail, BucketName | where count_ > 100',
+                "elastic": "gcp.audit.resource.type:gcs_bucket AND gcp.audit.method_name:storage.objects.get",
+                "sigma_logsource": "cloud/gcp",
+            },
+            "azure_activity_logs": {
+                "name": "Azure Monitor — Storage Blob Access Logs",
+                "hypothesis": "Unusual volume of blob downloads from Azure Storage accounts by a service principal or from external IPs.",
+                "splunk": "index=azure_storage category=StorageRead operationType=GetBlob | stats count, dc(uri) as blobs by callerIpAddress, accountName | where count > 200",
+                "kql": 'StorageBlobLogs | where OperationName == "GetBlob" | summarize Requests=count(), UniqueBlobs=dcount(Uri) by CallerIpAddress, AccountName | where Requests > 200',
+                "elastic": "azure.storage.operation_name:GetBlob AND NOT azure.storage.caller_ip_address:10.*",
+                "sigma_logsource": "cloud/azure/activitylogs",
+            },
+        },
+    },
+    "T1609": {
+        "name": "Container Administration Command",
+        "tactic": "execution",
+        "log_sources": {
+            "k8s_audit": {
+                "name": "Kubernetes API Server Audit Log",
+                "hypothesis": "kubectl exec or attach into a running pod — especially into privileged or system-namespace pods.",
+                "splunk": 'index=k8s_audit verb=create resource=pods subresource IN (exec,attach) | stats count by user.username, objectRef.namespace, objectRef.name | where NOT match(user.username,"system:serviceaccount:kube-system")',
+                "kql": 'KubeAudit_CL | where verb_s == "create" and resource_s == "pods" and subresource_s in ("exec","attach") | project TimeGenerated, user_username_s, namespace_s, podName_s',
+                "elastic": "kubernetes.audit.verb:create AND kubernetes.audit.object_ref.resource:pods AND kubernetes.audit.object_ref.subresource:(exec OR attach)",
+                "sigma_logsource": "cloud/kubernetes/audit",
+            },
+            "docker_daemon": {
+                "name": "Docker Daemon / Containerd Logs",
+                "hypothesis": "docker exec into a running container — especially combined with elevated capabilities or root shell.",
+                "splunk": 'index=docker_events Type=exec_create | rex field=Status "exec_create: (?P<cmd>.+)" | where match(cmd,"(?i)(sh|bash|cmd|powershell|/bin/)") | table _time, host, container_id, cmd',
+                "kql": 'ContainerLog | where LogEntry has "exec_create" | where LogEntry has_any ("sh","bash","/bin/") | project TimeGenerated, Computer, ContainerID, LogEntry',
+                "elastic": "event.action:exec_create AND container.runtime:docker",
+                "sigma_logsource": "cloud/container/docker",
+            },
+        },
+    },
+    "T1610": {
+        "name": "Deploy Container",
+        "tactic": "defense-evasion",
+        "log_sources": {
+            "k8s_audit": {
+                "name": "Kubernetes API Server Audit Log",
+                "hypothesis": "New DaemonSet or privileged Pod created — potential persistence via node-level container deployment.",
+                "splunk": 'index=k8s_audit verb=create resource IN (pods,daemonsets,deployments) | where match(requestObject.spec.containers{}.securityContext.privileged,"true") OR match(requestObject.spec.hostPID,"true") | stats count by user.username, objectRef.namespace, requestObject.metadata.name',
+                "kql": 'KubeAudit_CL | where verb_s == "create" and resource_s in ("pods","daemonsets","deployments") | where requestObject_s has "privileged" or requestObject_s has "hostPID" | project TimeGenerated, user_username_s, namespace_s, name_s',
+                "elastic": "kubernetes.audit.verb:create AND kubernetes.audit.object_ref.resource:(pods OR daemonsets) AND kubernetes.audit.request_object:*privileged*",
+                "sigma_logsource": "cloud/kubernetes/audit",
+            },
+            "aws_cloudtrail": {
+                "name": "AWS CloudTrail — ECS / EKS Task Launch",
+                "hypothesis": "New ECS task definition registered with privileged settings or unexpected image pulled from external registry.",
+                "splunk": 'index=aws_cloudtrail eventSource=ecs.amazonaws.com eventName IN (RegisterTaskDefinition,RunTask) | rex field=requestParameters "image":"(?P<image>[^"]+)" | where NOT match(image,"(?i)(your-account-id\\.dkr\\.ecr|public\\.ecr\\.aws)") | table _time, userIdentity.arn, image',
+                "kql": 'AWSCloudTrail | where EventSource == "ecs.amazonaws.com" and EventName in ("RegisterTaskDefinition","RunTask") | project TimeGenerated, UserIdentityArn, RequestParameters',
+                "elastic": "aws.cloudtrail.event_source:ecs.amazonaws.com AND aws.cloudtrail.event_name:(RegisterTaskDefinition OR RunTask)",
+                "sigma_logsource": "cloud/aws/cloudtrail",
+            },
+            "docker_daemon": {
+                "name": "Docker Daemon Logs",
+                "hypothesis": "Container started with --privileged or --pid=host flags, or with a mounted host filesystem.",
+                "splunk": 'index=docker_events Type=container Action=start | where match(Actor.Attributes.image,"(?i)(alpine|busybox|kalilinux)") OR match(HostConfig.Privileged,"true") | table _time, host, container_id, Actor.Attributes.image',
+                "kql": 'ContainerLog | where LogEntry has "container start" and (LogEntry has "privileged" or LogEntry has "hostPID") | project TimeGenerated, Computer, ContainerID, LogEntry',
+                "elastic": "event.action:container_start AND container.runtime:docker AND NOT container.image.name:*internal-registry*",
+                "sigma_logsource": "cloud/container/docker",
+            },
+        },
+    },
+    "T1613": {
+        "name": "Container and Resource Discovery",
+        "tactic": "discovery",
+        "log_sources": {
+            "k8s_audit": {
+                "name": "Kubernetes API Server Audit Log",
+                "hypothesis": "Unusual burst of LIST or WATCH calls against pods, secrets, or cluster roles — automated discovery.",
+                "splunk": "index=k8s_audit verb IN (list,watch) resource IN (pods,secrets,clusterroles,nodes) | stats count by user.username, resource, objectRef.namespace | where count > 50 | sort -count",
+                "kql": 'KubeAudit_CL | where verb_s in ("list","watch") and resource_s in ("pods","secrets","clusterroles","nodes") | summarize count() by user_username_s, resource_s, namespace_s | where count_ > 50',
+                "elastic": "kubernetes.audit.verb:(list OR watch) AND kubernetes.audit.object_ref.resource:(pods OR secrets OR clusterroles)",
+                "sigma_logsource": "cloud/kubernetes/audit",
+            },
+            "docker_daemon": {
+                "name": "Docker API / Daemon Logs",
+                "hypothesis": "docker ps, inspect, or API GET /containers/json called from a non-admin account or from a container itself.",
+                "splunk": "index=docker_events Type=container Action IN (list,inspect) | stats count by host, remoteAddr | where count > 20",
+                "kql": 'ContainerLog | where LogEntry has_any ("GET /containers/json","docker ps","docker inspect") | summarize count() by Computer, ContainerID | where count_ > 20',
+                "elastic": "event.action:(container_list OR container_inspect) AND container.runtime:docker",
+                "sigma_logsource": "cloud/container/docker",
+            },
+        },
+    },
 }
 
 # Canonical log source tags → friendly names
 _LOG_SOURCE_LABELS: dict[str, str] = {
+    # Windows / Sysmon
     "sysmon_process": "Sysmon Process Creation (EID 1)",
     "sysmon_process_access": "Sysmon Process Access (EID 10)",
     "sysmon_registry": "Sysmon Registry Events (EID 13)",
@@ -369,11 +572,23 @@ _LOG_SOURCE_LABELS: dict[str, str] = {
     "windows_event_4769": "Windows Security - Kerberos Ticket (EID 4769)",
     "windows_event_7045": "Windows System - New Service (EID 7045)",
     "windows_defender": "Microsoft Defender / EDR",
+    # Network
     "proxy_logs": "Web Proxy / Firewall HTTP Logs",
     "dns_logs": "DNS Query Logs",
     "email_gateway": "Email Gateway Logs",
     "web_server_logs": "Web Server / WAF Logs",
     "firewall_logs": "Firewall / Network Flow Logs",
+    # Cloud — AWS
+    "aws_cloudtrail": "AWS CloudTrail",
+    # Cloud — Azure
+    "azure_activity_logs": "Azure Monitor / Activity Logs",
+    # Cloud — GCP
+    "gcp_cloud_logging": "GCP Cloud Logging / Audit Logs",
+    # Container / Kubernetes
+    "k8s_audit": "Kubernetes API Server Audit Log",
+    "docker_daemon": "Docker Daemon / Containerd Logs",
+    # CI / SCM
+    "github_actions_audit": "GitHub Actions / Audit Log",
 }
 
 

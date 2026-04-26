@@ -15,6 +15,87 @@ _DOMAIN = re.compile(
 )
 _URL = re.compile(r'\bhttps?://[^\s<>"{}|\\^`\[\]]+', re.IGNORECASE)
 
+# Extensions that look like domains (word.ext) but are actually filenames.
+_FILE_EXTENSIONS: set[str] = {
+    "sh",
+    "py",
+    "pyc",
+    "pyd",
+    "pyw",
+    "rb",
+    "go",
+    "rs",
+    "c",
+    "cpp",
+    "h",
+    "js",
+    "ts",
+    "jsx",
+    "tsx",
+    "php",
+    "pl",
+    "lua",
+    "r",
+    "jl",
+    "swift",
+    "exe",
+    "dll",
+    "so",
+    "dylib",
+    "bin",
+    "elf",
+    "sys",
+    "drv",
+    "bat",
+    "cmd",
+    "ps1",
+    "psm1",
+    "vbs",
+    "wsf",
+    "json",
+    "yaml",
+    "yml",
+    "toml",
+    "xml",
+    "ini",
+    "cfg",
+    "conf",
+    "env",
+    "txt",
+    "log",
+    "csv",
+    "tsv",
+    "md",
+    "rst",
+    "tar",
+    "gz",
+    "bz2",
+    "xz",
+    "zip",
+    "rar",
+    "7z",
+    "zst",
+    "deb",
+    "rpm",
+    "pkg",
+    "apk",
+    "dmg",
+    "msi",
+    "whl",
+    "egg",
+    "war",
+    "jar",
+    "class",
+    "img",
+    "iso",
+    "vmdk",
+    "ova",
+    "pth",
+    "lock",
+    "sum",
+    "mod",
+}
+
 
 def _unique(items: list[str]) -> list[str]:
     seen: set[str] = set()
@@ -43,7 +124,13 @@ def extract_iocs_from_text(text: str) -> dict:
     hashes = _unique(_HASH.findall(text))
     emails = _unique(_EMAIL.findall(text))
     domain_hits = _unique(_DOMAIN.findall(text))
-    domains = [d for d in domain_hits if d not in ips and not any(d in u for u in urls)]
+    domains = [
+        d
+        for d in domain_hits
+        if d not in ips
+        and not any(d in u for u in urls)
+        and d.rsplit(".", 1)[-1].lower() not in _FILE_EXTENSIONS
+    ]
 
     return {
         "ips": ips,
