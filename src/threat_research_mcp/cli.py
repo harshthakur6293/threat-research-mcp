@@ -6,7 +6,5 @@ def main() -> None:
     from threat_research_mcp import server  # noqa: PLC0415
 
     if server.mcp is None:
-        raise SystemExit(
-            "FastMCP not installed. Install with: pip install 'mcp>=1.8.0'"
-        )
+        raise SystemExit("FastMCP not installed. Install with: pip install 'mcp>=1.8.0'")
     server.mcp.run()
