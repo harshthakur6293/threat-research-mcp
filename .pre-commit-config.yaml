@@ -1,39 +1,35 @@
-# Pre-commit hooks — prevent CI failures before they reach GitHub
-# Install: pre-commit install && pre-commit install --hook-type pre-push
-# Run all manually: pre-commit run --all-files
+# Pre-commit hooks — catch lint/format issues before they reach CI
+#
+# First-time setup:
+#   pip install pre-commit
+#   pre-commit install
+#   pre-commit run --all-files   # verify clean baseline
+#
+# Before pushing, run the full CI check manually:
+#   make ci          (Linux/macOS)
+#   python -m ruff check . && python -m ruff format --check . && python -m pytest tests/ -q
 
 repos:
-  # Ruff — linter + formatter (mirrors CI exactly)
+  # Ruff — linter + formatter (mirrors CI exactly, < 1s per commit)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.8
     hooks:
-      - id: ruff          # ruff check --fix  (runs on commit)
+      - id: ruff          # ruff check --fix
         args: [--fix]
-      - id: ruff-format   # ruff format        (runs on commit)
+      - id: ruff-format   # ruff format
 
-  # General hygiene checks
+  # General hygiene
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-yaml
-        exclude: ^demo/          # skip cast/svg files
+        exclude: ^demo/
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: end-of-file-fixer
-        exclude: \.(svg|cast)$   # skip binary-ish generated files
+        exclude: \.(svg|cast)$
       - id: trailing-whitespace
         exclude: \.(svg|cast|md)$
       - id: debug-statements
-
-  # Pytest — runs on pre-push only (not on every commit, to stay fast)
-  - repo: local
-    hooks:
-      - id: pytest
-        name: pytest (full suite)
-        language: system
-        entry: python -m pytest tests/ -q --no-header --tb=short -x
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
