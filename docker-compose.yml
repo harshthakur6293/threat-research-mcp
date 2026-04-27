@@ -1,0 +1,15 @@
+services:
+  threat-research-mcp:
+    build: .
+    image: threat-research-mcp:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - THREAT_MCP_OFFLINE=false
+      # Optional enrichment APIs
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY:-}
+      - MISP_URL=${MISP_URL:-}
+      - MISP_KEY=${MISP_KEY:-}
+    volumes:
+      - ./playbook:/app/playbook   # mount for live playbook edits
+    restart: unless-stopped

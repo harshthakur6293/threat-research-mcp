@@ -66,6 +66,11 @@ omit = [
     # Thin tool wrappers with no testable logic beyond delegation
     "src/threat_research_mcp/tools/detection_gap_analysis.py",
     "src/threat_research_mcp/tools/reconstruct_timeline.py",
+    # MISP integration — requires live MISP instance; no unit tests possible without a server
+    "src/threat_research_mcp/tools/misp_bridge.py",
+    # Enrichment — requires real API keys (VT, OTX, AbuseIPDB, URLhaus)
+    "src/threat_research_mcp/enrichment/enrich.py",
+    "src/threat_research_mcp/enrichment/__init__.py",
     "src/threat_research_mcp/tools/map_data_sources.py",
     "src/threat_research_mcp/tools/generate_detection_ideas.py",
     # Legacy detection scaffolding — not exposed via MCP tools

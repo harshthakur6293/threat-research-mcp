@@ -94,6 +94,17 @@ _FILE_EXTENSIONS: set[str] = {
     "lock",
     "sum",
     "mod",
+    # macOS-specific
+    "scpt",
+    "app",
+    "plist",
+    "dylib",
+    "kext",
+    "framework",
+    "bundle",
+    "pkg",
+    "dmg",
+    "local",
 }
 
 

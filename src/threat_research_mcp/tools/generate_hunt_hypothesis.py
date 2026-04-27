@@ -555,6 +555,159 @@ _PLAYBOOK: dict[str, dict[str, Any]] = {
             },
         },
     },
+    # ── macOS ─────────────────────────────────────────────────────────────────
+    "T1059.002": {
+        "name": "AppleScript / osascript Execution",
+        "tactic": "execution",
+        "log_sources": {
+            "macos_unified_log": {
+                "name": "macOS Unified Log",
+                "hypothesis": "osascript invoked with -e flag or reading from stdin — common pattern for in-memory AppleScript execution.",
+                "splunk": 'index=macos_edr process_name=osascript | search cmdline="-e *" OR cmdline="*curl*" OR cmdline="*http*" | table _time, host, user, cmdline, parent_process',
+                "kql": 'DeviceProcessEvents | where DeviceName has "macOS" or OSPlatform == "macOS" | where FileName == "osascript" | where ProcessCommandLine has_any ("-e","curl","http","downloadString") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName',
+                "elastic": "process.name:osascript AND (process.command_line:*-e* OR process.command_line:*curl* OR process.command_line:*http*)",
+                "sigma_logsource": "macos/process_creation",
+            },
+            "edr_macos": {
+                "name": "EDR on macOS — Process Events",
+                "hypothesis": "Script Editor or osascript spawning curl, python, or bash — multi-stage download chain.",
+                "splunk": 'index=macos_edr (parent_process_name="Script Editor" OR parent_process_name="osascript") child_process_name IN ("curl","python","python3","bash","sh") | table _time, host, user, parent_process_name, cmdline',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where InitiatingProcessFileName in~ ("osascript","Script Editor") | where FileName in~ ("curl","python","python3","bash","sh") | project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, ProcessCommandLine',
+                "elastic": "process.parent.name:(osascript OR Script Editor) AND process.name:(curl OR python OR python3 OR bash OR sh)",
+                "sigma_logsource": "macos/process_creation",
+            },
+        },
+    },
+    "T1543.001": {
+        "name": "Launch Agent / Launch Daemon Persistence",
+        "tactic": "persistence",
+        "log_sources": {
+            "macos_unified_log": {
+                "name": "macOS Unified Log — launchd",
+                "hypothesis": "New .plist file written to /Library/LaunchDaemons/ or ~/Library/LaunchAgents/ pointing to a non-Apple binary.",
+                "splunk": 'index=macos_edr event_type=file_create target_path IN ("/Library/LaunchDaemons/*","/Library/LaunchAgents/*","*/Library/LaunchAgents/*") | where NOT match(target_path,"(?i)(apple|microsoft|google/chrome|dropbox)") | table _time, host, user, target_path, process_name',
+                "kql": 'DeviceFileEvents | where OSPlatform == "macOS" | where FolderPath has_any ("/Library/LaunchDaemons/","/Library/LaunchAgents/") | where not FolderPath has_any ("Apple","Microsoft","Dropbox","Google/Chrome") | project TimeGenerated, DeviceName, AccountName, FolderPath, FileName, InitiatingProcessFileName',
+                "elastic": "file.path:(*LaunchDaemons* OR *LaunchAgents*) AND NOT file.path:(*Apple* OR *Microsoft*) AND event.action:creation",
+                "sigma_logsource": "macos/file_event",
+            },
+            "edr_macos": {
+                "name": "EDR on macOS — launchctl load",
+                "hypothesis": "launchctl used to load a new daemon from an unusual path — persistence installation.",
+                "splunk": 'index=macos_edr process_name=launchctl cmdline="*load*" | where NOT match(cmdline,"(?i)(apple|system/library|/usr/libexec)") | table _time, host, user, cmdline, parent_process',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where FileName == "launchctl" | where ProcessCommandLine has "load" | where not ProcessCommandLine has_any ("/System/Library","/usr/libexec","Apple") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName',
+                "elastic": "process.name:launchctl AND process.command_line:*load* AND NOT process.command_line:*/System/Library/*",
+                "sigma_logsource": "macos/process_creation",
+            },
+        },
+    },
+    "T1548.006": {
+        "name": "TCC Database Manipulation",
+        "tactic": "defense-evasion",
+        "log_sources": {
+            "macos_unified_log": {
+                "name": "macOS Unified Log — TCC / sqlite3",
+                "hypothesis": "sqlite3 writing to TCC.db to grant permissions — bypasses macOS privacy controls without user prompt.",
+                "splunk": 'index=macos_edr process_name=sqlite3 target_path="*TCC.db*" | table _time, host, user, cmdline, parent_process',
+                "kql": 'DeviceFileEvents | where OSPlatform == "macOS" | where FileName == "TCC.db" | where InitiatingProcessFileName == "sqlite3" | project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine',
+                "elastic": "process.name:sqlite3 AND file.path:*TCC.db*",
+                "sigma_logsource": "macos/file_event",
+            },
+            "edr_macos": {
+                "name": "EDR on macOS — TCC parent-child chain",
+                "hypothesis": "Finder or SystemUIServer directed by an untrusted process to rename or move the com.apple.TCC directory.",
+                "splunk": 'index=macos_edr process_name IN ("Finder","SystemUIServer") | where NOT match(parent_process_name,"(?i)(loginwindow|launchd)") | table _time, host, user, parent_process_name, cmdline',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where FileName in~ ("Finder","SystemUIServer") | where not InitiatingProcessFileName in~ ("loginwindow","launchd") | project TimeGenerated, DeviceName, AccountName, FileName, InitiatingProcessFileName, InitiatingProcessCommandLine',
+                "elastic": "process.name:(Finder OR SystemUIServer) AND NOT process.parent.name:(loginwindow OR launchd)",
+                "sigma_logsource": "macos/process_creation",
+            },
+        },
+    },
+    "T1555.003": {
+        "name": "Credentials from Keychain / Web Browsers",
+        "tactic": "credential-access",
+        "log_sources": {
+            "macos_unified_log": {
+                "name": "macOS Unified Log — security CLI",
+                "hypothesis": "security find-generic-password or find-internet-password invoked by a non-browser, non-Apple process.",
+                "splunk": 'index=macos_edr process_name=security cmdline IN ("*find-generic-password*","*find-internet-password*") | where NOT match(parent_process_name,"(?i)(Safari|Chrome|Firefox|1Password|Keychain)") | table _time, host, user, cmdline',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where FileName == "security" | where ProcessCommandLine has_any ("find-generic-password","find-internet-password") | where not InitiatingProcessFileName has_any ("Safari","Chrome","Firefox","1Password") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName',
+                "elastic": "process.name:security AND process.command_line:(find-generic-password OR find-internet-password) AND NOT process.parent.name:(Safari OR Chrome OR Firefox)",
+                "sigma_logsource": "macos/process_creation",
+            },
+            "edr_macos": {
+                "name": "EDR on macOS — browser profile exfil",
+                "hypothesis": "ZIP archive created from ~/Library/Application Support/<browser>/Default containing cookies, login data, or keychain files.",
+                "splunk": 'index=macos_edr process_name IN ("zip","tar","python3") cmdline="*Library/Application Support*" cmdline IN ("*Cookies*","*Login Data*","*keychain*") | table _time, host, user, cmdline',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where FileName in~ ("zip","tar","python3") | where ProcessCommandLine has "Library/Application Support" | where ProcessCommandLine has_any ("Cookies","Login Data","keychain") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine',
+                "elastic": "process.name:(zip OR tar OR python3) AND process.command_line:*Application Support* AND process.command_line:(*Cookies* OR *Login Data* OR *keychain*)",
+                "sigma_logsource": "macos/process_creation",
+            },
+        },
+    },
+    "T1539": {
+        "name": "Steal Web Session Cookie",
+        "tactic": "credential-access",
+        "log_sources": {
+            "edr_macos": {
+                "name": "EDR on macOS — Telegram / app session theft",
+                "hypothesis": "Access to Telegram tdata or session db files by a process other than Telegram itself — session hijacking.",
+                "splunk": 'index=macos_edr target_path IN ("*Telegram*","*tdata*","*leveldb*") | where NOT match(process_name,"(?i)(Telegram|Electron)") | table _time, host, user, process_name, target_path',
+                "kql": 'DeviceFileEvents | where OSPlatform == "macOS" | where FolderPath has_any ("Telegram","tdata") | where not InitiatingProcessFileName has_any ("Telegram","Electron") | project TimeGenerated, DeviceName, AccountName, FolderPath, FileName, InitiatingProcessFileName',
+                "elastic": "file.path:(*Telegram* OR *tdata*) AND NOT process.name:(Telegram OR Electron) AND event.action:open",
+                "sigma_logsource": "macos/file_event",
+            },
+        },
+    },
+    "T1567.002": {
+        "name": "Exfiltration via Web Service (Telegram Bot API)",
+        "tactic": "exfiltration",
+        "log_sources": {
+            "proxy_logs": {
+                "name": "Web Proxy / Network Flow Logs",
+                "hypothesis": "Large HTTPS POST to api.telegram.org from a non-Telegram process — Telegram Bot API used as exfil channel.",
+                "splunk": 'index=proxy dest_host="api.telegram.org" cs_method=POST | where bytes_out > 50000 | stats sum(bytes_out) as total_bytes, count by src_ip, user_agent | where NOT match(user_agent,"(?i)(TelegramDesktop|Telegram for)")',
+                "kql": 'CommonSecurityLog | where DestinationHostName =~ "api.telegram.org" and RequestMethod == "POST" and SentBytes > 50000 | where not UserAgent has_any ("TelegramDesktop","Telegram for") | summarize TotalBytes=sum(SentBytes), Requests=count() by SourceIP, UserAgent',
+                "elastic": "destination.domain:api.telegram.org AND http.request.method:POST AND NOT http.request.headers.user_agent:*Telegram*",
+                "sigma_logsource": "proxy",
+            },
+            "edr_macos": {
+                "name": "EDR on macOS — curl to Telegram",
+                "hypothesis": "curl or python making POST requests to api.telegram.org with sendDocument or sendMessage endpoints — data exfil via bot.",
+                "splunk": 'index=macos_edr process_name IN ("curl","python3","python") cmdline IN ("*api.telegram.org*","*sendDocument*","*sendMessage*") | table _time, host, user, cmdline',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where FileName in~ ("curl","python3","python") | where ProcessCommandLine has "api.telegram.org" | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine',
+                "elastic": "process.name:(curl OR python3 OR python) AND process.command_line:*api.telegram.org*",
+                "sigma_logsource": "macos/process_creation",
+            },
+        },
+    },
+    "T1204.002": {
+        "name": "User Execution: Malicious File",
+        "tactic": "execution",
+        "log_sources": {
+            "edr_macos": {
+                "name": "EDR on macOS — Script Editor / user-opened file",
+                "hypothesis": "Script Editor opening an .scpt file with a large blank-line offset hiding malicious code — user-initiated execution.",
+                "splunk": 'index=macos_edr process_name="Script Editor" | where file_path="*.scpt" | where NOT match(file_path,"(?i)(/Applications/|/System/)") | table _time, host, user, file_path, cmdline',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where InitiatingProcessFileName == "Script Editor" | where ProcessCommandLine has ".scpt" | where not ProcessCommandLine has_any ("/Applications/","/System/") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine',
+                "elastic": "process.parent.name:Script Editor AND process.command_line:*.scpt AND NOT process.command_line:*/Applications/*",
+                "sigma_logsource": "macos/process_creation",
+            },
+        },
+    },
+    "T1560.001": {
+        "name": "Archive Collected Data: Archive via Utility",
+        "tactic": "collection",
+        "log_sources": {
+            "edr_macos": {
+                "name": "EDR on macOS — zip / tar before exfil",
+                "hypothesis": "zip or tar archiving user data directories (Documents, Downloads, SSH keys, browser profiles) shortly before a network connection.",
+                "splunk": 'index=macos_edr process_name IN ("zip","tar","ditto") cmdline IN ("*Documents*","*Downloads*","*.ssh*","*Library/Application Support*") | table _time, host, user, cmdline, parent_process',
+                "kql": 'DeviceProcessEvents | where OSPlatform == "macOS" | where FileName in~ ("zip","tar","ditto") | where ProcessCommandLine has_any ("Documents","Downloads",".ssh","Application Support") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName',
+                "elastic": "process.name:(zip OR tar OR ditto) AND process.command_line:(*Documents* OR *Downloads* OR *.ssh* OR *Application Support*)",
+                "sigma_logsource": "macos/process_creation",
+            },
+        },
+    },
 }
 
 # Canonical log source tags → friendly names
@@ -578,6 +731,9 @@ _LOG_SOURCE_LABELS: dict[str, str] = {
     "email_gateway": "Email Gateway Logs",
     "web_server_logs": "Web Server / WAF Logs",
     "firewall_logs": "Firewall / Network Flow Logs",
+    # macOS
+    "macos_unified_log": "macOS Unified Log (log show / log stream)",
+    "edr_macos": "EDR on macOS (Defender for Endpoint, CrowdStrike, SentinelOne)",
     # Cloud — AWS
     "aws_cloudtrail": "AWS CloudTrail",
     # Cloud — Azure

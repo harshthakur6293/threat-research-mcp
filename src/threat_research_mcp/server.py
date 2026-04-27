@@ -43,6 +43,20 @@ from threat_research_mcp.tools.generate_detections import (
     list_log_sources,
 )
 from threat_research_mcp.tools.run_pipeline import run_pipeline
+from threat_research_mcp.tools.parse_stix import parse_stix_bundle, stix_to_pipeline_text
+from threat_research_mcp.tools.navigator_export import (
+    navigator_layer_from_map_attack,
+)
+from threat_research_mcp.tools.score_sigma import (
+    score_sigma_rule,
+    score_sigma_from_technique,
+    get_atomic_tests,
+)
+from threat_research_mcp.tools.misp_bridge import (
+    pull_misp_events,
+    push_sigma_to_misp,
+    create_misp_event_from_pipeline,
+)
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -426,6 +440,134 @@ if FastMCP:
         Returns: JSON with rule_name and yara_rule (ready to save as .yar file).
         """
         return generate_yara_rule(rule_name, strings_csv, condition)
+
+    # ── STIX 2.1 Parser ──────────────────────────────────────────────────────
+
+    @mcp.tool()
+    def parse_stix(bundle_json: str) -> str:
+        """Parse a STIX 2.x bundle JSON string and extract IOCs and ATT&CK techniques.
+
+        Supports STIX 2.0 and 2.1. No external stix2 library required.
+        Extracts: indicator patterns (IP, domain, URL, hash, email),
+        attack-pattern objects (with ATT&CK IDs), malware, and threat actors.
+
+        Returns JSON with iocs, techniques, malware, threat_actors.
+        Pipe techniques into hunt_for_techniques for hunt queries.
+        """
+        return parse_stix_bundle(bundle_json)
+
+    @mcp.tool()
+    def stix_to_text(bundle_json: str) -> str:
+        """Convert a STIX 2.x bundle to flat text for use with run_pipeline_tool.
+
+        Extracts names, descriptions, and pattern values from all STIX objects
+        into a single text blob. Use this to feed a STIX bundle through the
+        full keyword-based pipeline without writing a custom parser.
+        """
+        return stix_to_pipeline_text(bundle_json)
+
+    # ── ATT&CK Navigator Export ───────────────────────────────────────────────
+
+    @mcp.tool()
+    def navigator_layer(
+        map_attack_json: str,
+        layer_name: str = "Threat Research MCP — Mapped Techniques",
+        layer_description: str = "",
+    ) -> str:
+        """Generate an ATT&CK Navigator layer JSON from map_attack() output.
+
+        Drag-and-drop the result into https://mitre-attack.github.io/attack-navigator/
+        for an instant visual heatmap. Techniques with more evidence keywords get
+        a higher score (color gradient: red → yellow → green).
+
+        Args:
+            map_attack_json:   JSON string from the map_attack tool.
+            layer_name:        Display name for the layer (optional).
+            layer_description: Description shown in Navigator (optional).
+        """
+        return navigator_layer_from_map_attack(
+            map_attack_json,
+            layer_name=layer_name,
+            layer_description=layer_description,
+        )
+
+    # ── Sigma Quality Scorer ──────────────────────────────────────────────────
+
+    @mcp.tool()
+    def score_sigma(sigma_yaml: str) -> str:
+        """Score a Sigma rule on specificity, coverage, and false-positive risk.
+
+        Returns a 1–5 score on each dimension plus a rationale list:
+        - specificity: how precisely targeted the detection condition is
+        - coverage:    how many SIEMs / log sources the rule addresses
+        - fp_risk:     1 = low risk, 5 = high false-positive risk
+        - overall:     weighted composite score
+
+        Use this to triage which rules to tune before production deployment.
+        """
+        return score_sigma_rule(sigma_yaml)
+
+    @mcp.tool()
+    def score_technique_sigma(technique_id: str) -> str:
+        """Score the built-in Sigma rule for an ATT&CK technique.
+
+        Generates the rule via generate_sigma_for_technique and immediately
+        scores it. Quick way to evaluate playbook rule quality.
+        """
+        return score_sigma_from_technique(technique_id)
+
+    @mcp.tool()
+    def atomic_tests_for_technique(technique_id: str) -> str:
+        """Return Atomic Red Team test IDs for an ATT&CK technique.
+
+        Loads from playbook/atomic_tests.yaml. These tests let you validate
+        that your detection rules actually fire against real adversary behaviour.
+
+        Returns test IDs, count, and a direct link to the ART repository entry.
+        """
+        return get_atomic_tests(technique_id)
+
+    # ── MISP Integration ──────────────────────────────────────────────────────
+
+    @mcp.tool()
+    def misp_pull(tags: str = "", limit: int = 10) -> str:
+        """Pull recent MISP events and return IOCs + pipeline-ready text.
+
+        Requires MISP_URL and MISP_KEY environment variables.
+
+        Args:
+            tags:  Comma-separated MISP tags to filter, e.g. "tlp:red,APT28"
+            limit: Max number of events (default 10)
+
+        Returns IOC lists and a pipeline_text field ready for run_pipeline_tool.
+        """
+        return pull_misp_events(tags=tags, limit=limit)
+
+    @mcp.tool()
+    def misp_push_sigma(event_id: str, sigma_yaml: str, technique_id: str = "") -> str:
+        """Push a Sigma rule as an attribute to an existing MISP event.
+
+        Requires MISP_URL and MISP_KEY environment variables.
+
+        Args:
+            event_id:     MISP event ID to attach the rule to.
+            sigma_yaml:   Sigma rule YAML string (from generate_sigma tools).
+            technique_id: ATT&CK technique ID for tagging (optional).
+        """
+        return push_sigma_to_misp(event_id, sigma_yaml, technique_id)
+
+    @mcp.tool()
+    def misp_create_event(pipeline_result: str) -> str:
+        """Create a new MISP event from run_pipeline_tool output.
+
+        Requires MISP_URL and MISP_KEY environment variables.
+        Creates an event with all extracted IOCs as attributes and ATT&CK
+        technique tags applied automatically.
+
+        Args:
+            pipeline_result: JSON string from run_pipeline_tool.
+        """
+        return create_misp_event_from_pipeline(pipeline_result)
 
 
 def main() -> None:

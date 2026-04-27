@@ -1,0 +1,866 @@
+# ATT&CK keyword index — community contributions welcome
+# Format: keyword → [tactic, technique_id, technique_name]
+# To add a technique: append an entry below and submit a PR.
+# Matching is case-insensitive; word boundaries applied automatically for
+# purely alphanumeric keywords (prevents substring false-positives).
+
+entries:
+  # ── Execution ──────────────────────────────────────────────────────────────
+  - keyword: "powershell"
+    tactic: execution
+    technique_id: T1059.001
+    technique_name: PowerShell
+  - keyword: "encodedcommand"
+    tactic: execution
+    technique_id: T1059.001
+    technique_name: PowerShell
+  - keyword: "-enc "
+    tactic: execution
+    technique_id: T1059.001
+    technique_name: PowerShell
+  - keyword: "invoke-expression"
+    tactic: execution
+    technique_id: T1059.001
+    technique_name: PowerShell
+  - keyword: "iex("
+    tactic: execution
+    technique_id: T1059.001
+    technique_name: PowerShell
+  - keyword: "cmd.exe"
+    tactic: execution
+    technique_id: T1059.003
+    technique_name: Windows Command Shell
+  - keyword: "wscript"
+    tactic: execution
+    technique_id: T1059.005
+    technique_name: Visual Basic
+  - keyword: "cscript"
+    tactic: execution
+    technique_id: T1059.005
+    technique_name: Visual Basic
+  - keyword: "vbscript"
+    tactic: execution
+    technique_id: T1059.005
+    technique_name: Visual Basic
+  - keyword: "javascript"
+    tactic: execution
+    technique_id: T1059.007
+    technique_name: JavaScript
+  - keyword: "jscript"
+    tactic: execution
+    technique_id: T1059.007
+    technique_name: JavaScript
+  - keyword: "mshta"
+    tactic: execution
+    technique_id: T1059.007
+    technique_name: JavaScript
+  - keyword: "bash -c"
+    tactic: execution
+    technique_id: T1059.004
+    technique_name: Unix Shell
+  - keyword: "sh -c"
+    tactic: execution
+    technique_id: T1059.004
+    technique_name: Unix Shell
+  - keyword: "zsh -c"
+    tactic: execution
+    technique_id: T1059.004
+    technique_name: Unix Shell
+  - keyword: "curl | bash"
+    tactic: execution
+    technique_id: T1059.004
+    technique_name: Unix Shell
+  - keyword: "curl | sh"
+    tactic: execution
+    technique_id: T1059.004
+    technique_name: Unix Shell
+  - keyword: "curl | osascript"
+    tactic: execution
+    technique_id: T1059.004
+    technique_name: Unix Shell
+  - keyword: "python -c"
+    tactic: execution
+    technique_id: T1059.006
+    technique_name: Python
+  - keyword: "perl -e"
+    tactic: execution
+    technique_id: T1059.006
+    technique_name: Python
+  - keyword: "ruby -e"
+    tactic: execution
+    technique_id: T1059.006
+    technique_name: Python
+  - keyword: "osascript"
+    tactic: execution
+    technique_id: T1059.002
+    technique_name: AppleScript
+  - keyword: "applescript"
+    tactic: execution
+    technique_id: T1059.002
+    technique_name: AppleScript
+  - keyword: "osacompile"
+    tactic: execution
+    technique_id: T1059.002
+    technique_name: AppleScript
+  - keyword: "wmic"
+    tactic: execution
+    technique_id: T1047
+    technique_name: Windows Management Instrumentation
+  - keyword: "winrm"
+    tactic: execution
+    technique_id: T1021.006
+    technique_name: Windows Remote Management
+  - keyword: "scheduled task"
+    tactic: execution
+    technique_id: T1053.005
+    technique_name: Scheduled Task
+  - keyword: "schtasks"
+    tactic: execution
+    technique_id: T1053.005
+    technique_name: Scheduled Task
+  - keyword: "at.exe"
+    tactic: execution
+    technique_id: T1053.002
+    technique_name: At
+  - keyword: "cron"
+    tactic: execution
+    technique_id: T1053.003
+    technique_name: Cron
+  - keyword: "msiexec"
+    tactic: execution
+    technique_id: T1218.007
+    technique_name: Msiexec
+  - keyword: "regsvr32"
+    tactic: execution
+    technique_id: T1218.010
+    technique_name: Regsvr32
+  - keyword: "rundll32"
+    tactic: execution
+    technique_id: T1218.011
+    technique_name: Rundll32
+  - keyword: "certutil"
+    tactic: execution
+    technique_id: T1140
+    technique_name: Deobfuscate/Decode Files or Information
+  - keyword: "user execution"
+    tactic: execution
+    technique_id: T1204.002
+    technique_name: Malicious File
+  - keyword: "malicious file"
+    tactic: execution
+    technique_id: T1204.002
+    technique_name: Malicious File
+  - keyword: "open the file"
+    tactic: execution
+    technique_id: T1204.002
+    technique_name: Malicious File
+
+  # ── Persistence ────────────────────────────────────────────────────────────
+  - keyword: "run key"
+    tactic: persistence
+    technique_id: T1547.001
+    technique_name: Registry Run Keys / Startup Folder
+  - keyword: "startup folder"
+    tactic: persistence
+    technique_id: T1547.001
+    technique_name: Registry Run Keys / Startup Folder
+  - keyword: "autorun"
+    tactic: persistence
+    technique_id: T1547.001
+    technique_name: Registry Run Keys / Startup Folder
+  - keyword: "service creation"
+    tactic: persistence
+    technique_id: T1543.003
+    technique_name: Windows Service
+  - keyword: "sc create"
+    tactic: persistence
+    technique_id: T1543.003
+    technique_name: Windows Service
+  - keyword: "new-service"
+    tactic: persistence
+    technique_id: T1543.003
+    technique_name: Windows Service
+  - keyword: "web shell"
+    tactic: persistence
+    technique_id: T1505.003
+    technique_name: Web Shell
+  - keyword: "webshell"
+    tactic: persistence
+    technique_id: T1505.003
+    technique_name: Web Shell
+  - keyword: "backdoor"
+    tactic: persistence
+    technique_id: T1505
+    technique_name: Server Software Component
+  - keyword: "crontab"
+    tactic: persistence
+    technique_id: T1053.003
+    technique_name: Cron
+  - keyword: "rc.local"
+    tactic: persistence
+    technique_id: T1037.004
+    technique_name: RC Scripts
+  - keyword: "systemd"
+    tactic: persistence
+    technique_id: T1543.002
+    technique_name: Systemd Service
+  - keyword: "launchd"
+    tactic: persistence
+    technique_id: T1543.001
+    technique_name: Launch Agent
+  - keyword: "launch daemon"
+    tactic: persistence
+    technique_id: T1543.001
+    technique_name: Launch Agent
+  - keyword: "launch agent"
+    tactic: persistence
+    technique_id: T1543.001
+    technique_name: Launch Agent
+  - keyword: "launchctl"
+    tactic: persistence
+    technique_id: T1543.001
+    technique_name: Launch Agent
+  - keyword: "daemonset"
+    tactic: persistence
+    technique_id: T1610
+    technique_name: Deploy Container
+
+  # ── Privilege Escalation ───────────────────────────────────────────────────
+  - keyword: "privilege escalation"
+    tactic: privilege-escalation
+    technique_id: T1068
+    technique_name: Exploitation for Privilege Escalation
+  - keyword: "uac bypass"
+    tactic: privilege-escalation
+    technique_id: T1548.002
+    technique_name: Bypass User Account Control
+  - keyword: "token impersonation"
+    tactic: privilege-escalation
+    technique_id: T1134.001
+    technique_name: Token Impersonation/Theft
+  - keyword: "pass the hash"
+    tactic: privilege-escalation
+    technique_id: T1550.002
+    technique_name: Pass the Hash
+  - keyword: "pass-the-hash"
+    tactic: privilege-escalation
+    technique_id: T1550.002
+    technique_name: Pass the Hash
+  - keyword: "pass the ticket"
+    tactic: privilege-escalation
+    technique_id: T1550.003
+    technique_name: Pass the Ticket
+  - keyword: "sudo"
+    tactic: privilege-escalation
+    technique_id: T1548.003
+    technique_name: Sudo and Sudo Caching
+  - keyword: "setuid"
+    tactic: privilege-escalation
+    technique_id: T1548.001
+    technique_name: Setuid and Setgid
+  - keyword: "iam role"
+    tactic: privilege-escalation
+    technique_id: T1078.004
+    technique_name: Cloud Accounts
+  - keyword: "assumed role"
+    tactic: privilege-escalation
+    technique_id: T1078.004
+    technique_name: Cloud Accounts
+  - keyword: "service principal"
+    tactic: privilege-escalation
+    technique_id: T1078.004
+    technique_name: Cloud Accounts
+
+  # ── Defense Evasion ────────────────────────────────────────────────────────
+  - keyword: "obfuscat"
+    tactic: defense-evasion
+    technique_id: T1027
+    technique_name: Obfuscated Files or Information
+  - keyword: "base64"
+    tactic: defense-evasion
+    technique_id: T1027
+    technique_name: Obfuscated Files or Information
+  - keyword: "mach-o"
+    tactic: defense-evasion
+    technique_id: T1027
+    technique_name: Obfuscated Files or Information
+  - keyword: "packed"
+    tactic: defense-evasion
+    technique_id: T1027.002
+    technique_name: Software Packing
+  - keyword: "process injection"
+    tactic: defense-evasion
+    technique_id: T1055
+    technique_name: Process Injection
+  - keyword: "dll injection"
+    tactic: defense-evasion
+    technique_id: T1055.001
+    technique_name: Dynamic-link Library Injection
+  - keyword: "process hollowing"
+    tactic: defense-evasion
+    technique_id: T1055.012
+    technique_name: Process Hollowing
+  - keyword: "timestomp"
+    tactic: defense-evasion
+    technique_id: T1070.006
+    technique_name: Timestomp
+  - keyword: "disable logging"
+    tactic: defense-evasion
+    technique_id: T1562.002
+    technique_name: Disable Windows Event Logging
+  - keyword: "disable antivirus"
+    tactic: defense-evasion
+    technique_id: T1562.001
+    technique_name: Disable or Modify Tools
+  - keyword: "tamper"
+    tactic: defense-evasion
+    technique_id: T1562
+    technique_name: Impair Defenses
+  - keyword: "reflective dll"
+    tactic: defense-evasion
+    technique_id: T1620
+    technique_name: Reflective Code Loading
+  - keyword: "in-memory execution"
+    tactic: defense-evasion
+    technique_id: T1620
+    technique_name: Reflective Code Loading
+  - keyword: "fileless"
+    tactic: defense-evasion
+    technique_id: T1620
+    technique_name: Reflective Code Loading
+  - keyword: "nscreateobjec"
+    tactic: defense-evasion
+    technique_id: T1620
+    technique_name: Reflective Code Loading
+  - keyword: "living off the land"
+    tactic: defense-evasion
+    technique_id: T1218
+    technique_name: System Binary Proxy Execution
+  - keyword: "lolbin"
+    tactic: defense-evasion
+    technique_id: T1218
+    technique_name: System Binary Proxy Execution
+  - keyword: "masquerad"
+    tactic: defense-evasion
+    technique_id: T1036
+    technique_name: Masquerading
+  - keyword: "renamed binary"
+    tactic: defense-evasion
+    technique_id: T1036.003
+    technique_name: Rename System Utilities
+  - keyword: "signed binary"
+    tactic: defense-evasion
+    technique_id: T1218
+    technique_name: System Binary Proxy Execution
+  - keyword: "tcc database"
+    tactic: defense-evasion
+    technique_id: T1548.006
+    technique_name: TCC Manipulation
+  - keyword: "tcc.db"
+    tactic: defense-evasion
+    technique_id: T1548.006
+    technique_name: TCC Manipulation
+  - keyword: "transparency consent"
+    tactic: defense-evasion
+    technique_id: T1548.006
+    technique_name: TCC Manipulation
+  - keyword: "gatekeeper"
+    tactic: defense-evasion
+    technique_id: T1553.001
+    technique_name: Gatekeeper Bypass
+  - keyword: "quarantine attribute"
+    tactic: defense-evasion
+    technique_id: T1553.001
+    technique_name: Gatekeeper Bypass
+  - keyword: "notarization"
+    tactic: defense-evasion
+    technique_id: T1553.001
+    technique_name: Gatekeeper Bypass
+  - keyword: "deploy container"
+    tactic: defense-evasion
+    technique_id: T1610
+    technique_name: Deploy Container
+  - keyword: "malicious container"
+    tactic: defense-evasion
+    technique_id: T1610
+    technique_name: Deploy Container
+
+  # ── Credential Access ──────────────────────────────────────────────────────
+  - keyword: "mimikatz"
+    tactic: credential-access
+    technique_id: T1003
+    technique_name: OS Credential Dumping
+  - keyword: "lsass"
+    tactic: credential-access
+    technique_id: T1003.001
+    technique_name: LSASS Memory
+  - keyword: "credential dump"
+    tactic: credential-access
+    technique_id: T1003
+    technique_name: OS Credential Dumping
+  - keyword: "sekurlsa"
+    tactic: credential-access
+    technique_id: T1003.001
+    technique_name: LSASS Memory
+  - keyword: "procdump"
+    tactic: credential-access
+    technique_id: T1003.001
+    technique_name: LSASS Memory
+  - keyword: "ntds.dit"
+    tactic: credential-access
+    technique_id: T1003.003
+    technique_name: NTDS
+  - keyword: "hashdump"
+    tactic: credential-access
+    technique_id: T1003
+    technique_name: OS Credential Dumping
+  - keyword: "brute force"
+    tactic: credential-access
+    technique_id: T1110
+    technique_name: Brute Force
+  - keyword: "password spray"
+    tactic: credential-access
+    technique_id: T1110.003
+    technique_name: Password Spraying
+  - keyword: "credential stuffing"
+    tactic: credential-access
+    technique_id: T1110.004
+    technique_name: Credential Stuffing
+  - keyword: "keylogger"
+    tactic: credential-access
+    technique_id: T1056.001
+    technique_name: Keylogging
+  - keyword: "keylogging"
+    tactic: credential-access
+    technique_id: T1056.001
+    technique_name: Keylogging
+  - keyword: "kerberoasting"
+    tactic: credential-access
+    technique_id: T1558.003
+    technique_name: Kerberoasting
+  - keyword: "as-rep roasting"
+    tactic: credential-access
+    technique_id: T1558.004
+    technique_name: AS-REP Roasting
+  - keyword: "keychain"
+    tactic: credential-access
+    technique_id: T1555.003
+    technique_name: Credentials from Web Browsers
+  - keyword: "security find-generic-password"
+    tactic: credential-access
+    technique_id: T1555.003
+    technique_name: Credentials from Web Browsers
+  - keyword: "security find-internet-password"
+    tactic: credential-access
+    technique_id: T1555.003
+    technique_name: Credentials from Web Browsers
+  - keyword: "session hijack"
+    tactic: credential-access
+    technique_id: T1539
+    technique_name: Steal Web Session Cookie
+  - keyword: "session cookie"
+    tactic: credential-access
+    technique_id: T1539
+    technique_name: Steal Web Session Cookie
+  - keyword: "169.254.169.254"
+    tactic: credential-access
+    technique_id: T1552.005
+    technique_name: Cloud Instance Metadata API
+  - keyword: "imds"
+    tactic: credential-access
+    technique_id: T1552.005
+    technique_name: Cloud Instance Metadata API
+  - keyword: "instance metadata"
+    tactic: credential-access
+    technique_id: T1552.005
+    technique_name: Cloud Instance Metadata API
+  - keyword: "cloud credential"
+    tactic: credential-access
+    technique_id: T1552.005
+    technique_name: Cloud Instance Metadata API
+
+  # ── Discovery ──────────────────────────────────────────────────────────────
+  - keyword: "nmap"
+    tactic: discovery
+    technique_id: T1046
+    technique_name: Network Service Discovery
+  - keyword: "port scan"
+    tactic: discovery
+    technique_id: T1046
+    technique_name: Network Service Discovery
+  - keyword: "net view"
+    tactic: discovery
+    technique_id: T1135
+    technique_name: Network Share Discovery
+  - keyword: "net user"
+    tactic: discovery
+    technique_id: T1087.002
+    technique_name: Domain Account
+  - keyword: "whoami"
+    tactic: discovery
+    technique_id: T1033
+    technique_name: System Owner/User Discovery
+  - keyword: "ipconfig"
+    tactic: discovery
+    technique_id: T1016
+    technique_name: System Network Configuration Discovery
+  - keyword: "ifconfig"
+    tactic: discovery
+    technique_id: T1016
+    technique_name: System Network Configuration Discovery
+  - keyword: "systeminfo"
+    tactic: discovery
+    technique_id: T1082
+    technique_name: System Information Discovery
+  - keyword: "sw_vers"
+    tactic: discovery
+    technique_id: T1082
+    technique_name: System Information Discovery
+  - keyword: "sysctl"
+    tactic: discovery
+    technique_id: T1082
+    technique_name: System Information Discovery
+  - keyword: "tasklist"
+    tactic: discovery
+    technique_id: T1057
+    technique_name: Process Discovery
+  - keyword: "ps aux"
+    tactic: discovery
+    technique_id: T1057
+    technique_name: Process Discovery
+  - keyword: "ldap"
+    tactic: discovery
+    technique_id: T1018
+    technique_name: Remote System Discovery
+  - keyword: "bloodhound"
+    tactic: discovery
+    technique_id: T1482
+    technique_name: Domain Trust Discovery
+  - keyword: "sharphound"
+    tactic: discovery
+    technique_id: T1482
+    technique_name: Domain Trust Discovery
+  - keyword: "domain trust"
+    tactic: discovery
+    technique_id: T1482
+    technique_name: Domain Trust Discovery
+  - keyword: "container discovery"
+    tactic: discovery
+    technique_id: T1613
+    technique_name: Container and Resource Discovery
+  - keyword: "docker ps"
+    tactic: discovery
+    technique_id: T1613
+    technique_name: Container and Resource Discovery
+  - keyword: "kubectl get"
+    tactic: discovery
+    technique_id: T1613
+    technique_name: Container and Resource Discovery
+  - keyword: "kubernetes"
+    tactic: discovery
+    technique_id: T1613
+    technique_name: Container and Resource Discovery
+
+  # ── Lateral Movement ───────────────────────────────────────────────────────
+  - keyword: "lateral movement"
+    tactic: lateral-movement
+    technique_id: T1021
+    technique_name: Remote Services
+  - keyword: "psexec"
+    tactic: lateral-movement
+    technique_id: T1021.002
+    technique_name: SMB/Windows Admin Shares
+  - keyword: "smb"
+    tactic: lateral-movement
+    technique_id: T1021.002
+    technique_name: SMB/Windows Admin Shares
+  - keyword: "rdp"
+    tactic: lateral-movement
+    technique_id: T1021.001
+    technique_name: Remote Desktop Protocol
+  - keyword: "remote desktop"
+    tactic: lateral-movement
+    technique_id: T1021.001
+    technique_name: Remote Desktop Protocol
+  - keyword: "wmi execution"
+    tactic: lateral-movement
+    technique_id: T1021.003
+    technique_name: Distributed Component Object Model
+  - keyword: "ssh"
+    tactic: lateral-movement
+    technique_id: T1021.004
+    technique_name: SSH
+  - keyword: "rpcclient"
+    tactic: lateral-movement
+    technique_id: T1021.003
+    technique_name: Distributed Component Object Model
+
+  # ── Collection ─────────────────────────────────────────────────────────────
+  - keyword: "data staging"
+    tactic: collection
+    technique_id: T1074
+    technique_name: Data Staged
+  - keyword: "screen capture"
+    tactic: collection
+    technique_id: T1113
+    technique_name: Screen Capture
+  - keyword: "screenshot"
+    tactic: collection
+    technique_id: T1113
+    technique_name: Screen Capture
+  - keyword: "clipboard"
+    tactic: collection
+    technique_id: T1115
+    technique_name: Clipboard Data
+  - keyword: "email collection"
+    tactic: collection
+    technique_id: T1114
+    technique_name: Email Collection
+  - keyword: "archive collected"
+    tactic: collection
+    technique_id: T1560.001
+    technique_name: Archive via Utility
+  - keyword: "zip archive"
+    tactic: collection
+    technique_id: T1560.001
+    technique_name: Archive via Utility
+  - keyword: "s3 bucket"
+    tactic: collection
+    technique_id: T1530
+    technique_name: Data from Cloud Storage
+  - keyword: "blob storage"
+    tactic: collection
+    technique_id: T1530
+    technique_name: Data from Cloud Storage
+  - keyword: "crypto wallet"
+    tactic: collection
+    technique_id: T1005
+    technique_name: Data from Local System
+  - keyword: "ledger live"
+    tactic: collection
+    technique_id: T1005
+    technique_name: Data from Local System
+  - keyword: "exodus wallet"
+    tactic: collection
+    technique_id: T1005
+    technique_name: Data from Local System
+
+  # ── Command & Control ──────────────────────────────────────────────────────
+  - keyword: "c2"
+    tactic: command-and-control
+    technique_id: T1071
+    technique_name: Application Layer Protocol
+  - keyword: "command and control"
+    tactic: command-and-control
+    technique_id: T1071
+    technique_name: Application Layer Protocol
+  - keyword: "beacon"
+    tactic: command-and-control
+    technique_id: T1071.001
+    technique_name: Web Protocols
+  - keyword: "cobalt strike"
+    tactic: command-and-control
+    technique_id: T1071.001
+    technique_name: Web Protocols
+  - keyword: "sliver"
+    tactic: command-and-control
+    technique_id: T1071.001
+    technique_name: Web Protocols
+  - keyword: "metasploit"
+    tactic: command-and-control
+    technique_id: T1071.001
+    technique_name: Web Protocols
+  - keyword: "dns tunneling"
+    tactic: command-and-control
+    technique_id: T1071.004
+    technique_name: DNS
+  - keyword: "dns tunnel"
+    tactic: command-and-control
+    technique_id: T1071.004
+    technique_name: DNS
+  - keyword: "domain fronting"
+    tactic: command-and-control
+    technique_id: T1090.004
+    technique_name: Domain Fronting
+  - keyword: "tor network"
+    tactic: command-and-control
+    technique_id: T1090.003
+    technique_name: Multi-hop Proxy
+  - keyword: "via tor"
+    tactic: command-and-control
+    technique_id: T1090.003
+    technique_name: Multi-hop Proxy
+  - keyword: "proxy"
+    tactic: command-and-control
+    technique_id: T1090
+    technique_name: Proxy
+
+  # ── Exfiltration ───────────────────────────────────────────────────────────
+  - keyword: "exfiltrat"
+    tactic: exfiltration
+    technique_id: T1041
+    technique_name: Exfiltration Over C2 Channel
+  - keyword: "data theft"
+    tactic: exfiltration
+    technique_id: T1041
+    technique_name: Exfiltration Over C2 Channel
+  - keyword: "rclone"
+    tactic: exfiltration
+    technique_id: T1567.002
+    technique_name: Exfiltration to Cloud Storage
+  - keyword: "mega.nz"
+    tactic: exfiltration
+    technique_id: T1567.002
+    technique_name: Exfiltration to Cloud Storage
+  - keyword: "telegram bot api"
+    tactic: exfiltration
+    technique_id: T1567.002
+    technique_name: Exfiltration to Web Service
+  - keyword: "telegram bot"
+    tactic: exfiltration
+    technique_id: T1567.002
+    technique_name: Exfiltration to Web Service
+  - keyword: "discord webhook"
+    tactic: exfiltration
+    technique_id: T1567.002
+    technique_name: Exfiltration to Web Service
+
+  # ── Initial Access ─────────────────────────────────────────────────────────
+  - keyword: "phishing"
+    tactic: initial-access
+    technique_id: T1566
+    technique_name: Phishing
+  - keyword: "spearphish"
+    tactic: initial-access
+    technique_id: T1566.001
+    technique_name: Spearphishing Attachment
+  - keyword: "malicious attachment"
+    tactic: initial-access
+    technique_id: T1566.001
+    technique_name: Spearphishing Attachment
+  - keyword: "malicious link"
+    tactic: initial-access
+    technique_id: T1566.002
+    technique_name: Spearphishing Link
+  - keyword: "spearphishing link"
+    tactic: initial-access
+    technique_id: T1566.002
+    technique_name: Spearphishing Link
+  - keyword: "linkedin lure"
+    tactic: initial-access
+    technique_id: T1566.002
+    technique_name: Spearphishing Link
+  - keyword: "fake job"
+    tactic: initial-access
+    technique_id: T1566.002
+    technique_name: Spearphishing Link
+  - keyword: "fake recruiter"
+    tactic: initial-access
+    technique_id: T1566.002
+    technique_name: Spearphishing Link
+  - keyword: "drive-by"
+    tactic: initial-access
+    technique_id: T1189
+    technique_name: Drive-by Compromise
+  - keyword: "watering hole"
+    tactic: initial-access
+    technique_id: T1189
+    technique_name: Drive-by Compromise
+  - keyword: "supply chain"
+    tactic: initial-access
+    technique_id: T1195
+    technique_name: Supply Chain Compromise
+  - keyword: "software supply chain"
+    tactic: initial-access
+    technique_id: T1195.001
+    technique_name: Compromise Software Supply Chain
+  - keyword: "dependency confusion"
+    tactic: initial-access
+    technique_id: T1195.001
+    technique_name: Compromise Software Supply Chain
+  - keyword: "typosquat"
+    tactic: initial-access
+    technique_id: T1195.001
+    technique_name: Compromise Software Supply Chain
+  - keyword: "malicious package"
+    tactic: initial-access
+    technique_id: T1195.001
+    technique_name: Compromise Software Supply Chain
+  - keyword: "pypi"
+    tactic: initial-access
+    technique_id: T1195.001
+    technique_name: Compromise Software Supply Chain
+  - keyword: "pip install"
+    tactic: initial-access
+    technique_id: T1195.001
+    technique_name: Compromise Software Supply Chain
+  - keyword: "malicious workflow"
+    tactic: initial-access
+    technique_id: T1195.002
+    technique_name: Compromise Software Dependencies
+  - keyword: "github actions"
+    tactic: initial-access
+    technique_id: T1195.002
+    technique_name: Compromise Software Dependencies
+  - keyword: "ci/cd"
+    tactic: initial-access
+    technique_id: T1195.002
+    technique_name: Compromise Software Dependencies
+  - keyword: "valid accounts"
+    tactic: initial-access
+    technique_id: T1078
+    technique_name: Valid Accounts
+  - keyword: "stolen credentials"
+    tactic: initial-access
+    technique_id: T1078
+    technique_name: Valid Accounts
+  - keyword: "vpn"
+    tactic: initial-access
+    technique_id: T1078.002
+    technique_name: Domain Accounts
+  - keyword: "exploit public"
+    tactic: initial-access
+    technique_id: T1190
+    technique_name: Exploit Public-Facing Application
+  - keyword: "sql injection"
+    tactic: initial-access
+    technique_id: T1190
+    technique_name: Exploit Public-Facing Application
+  - keyword: "remote code execution"
+    tactic: initial-access
+    technique_id: T1190
+    technique_name: Exploit Public-Facing Application
+  - keyword: "cloud account"
+    tactic: initial-access
+    technique_id: T1078.004
+    technique_name: Cloud Accounts
+
+  # ── Impact ─────────────────────────────────────────────────────────────────
+  - keyword: "ransomware"
+    tactic: impact
+    technique_id: T1486
+    technique_name: Data Encrypted for Impact
+  - keyword: "encrypt"
+    tactic: impact
+    technique_id: T1486
+    technique_name: Data Encrypted for Impact
+  - keyword: "wiper"
+    tactic: impact
+    technique_id: T1485
+    technique_name: Data Destruction
+  - keyword: "data destruction"
+    tactic: impact
+    technique_id: T1485
+    technique_name: Data Destruction
+  - keyword: "defacement"
+    tactic: impact
+    technique_id: T1491
+    technique_name: Defacement
+  - keyword: "denial of service"
+    tactic: impact
+    technique_id: T1499
+    technique_name: Endpoint Denial of Service
+  - keyword: "ddos"
+    tactic: impact
+    technique_id: T1499
+    technique_name: Endpoint Denial of Service

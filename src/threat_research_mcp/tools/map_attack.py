@@ -8,7 +8,20 @@ appear in the supplied text, de-duplicated, with supporting evidence.
 from __future__ import annotations
 
 import json
+import re
 from typing import Dict, List, Tuple
+
+
+def _compile(keyword: str) -> re.Pattern:
+    """Compile keyword to regex with word-boundaries where applicable."""
+    kw = keyword.strip()
+    pat = re.escape(kw)
+    if re.match(r"\w", kw[0]):
+        pat = r"\b" + pat
+    if re.search(r"\w$", kw):
+        pat = pat + r"\b"
+    return re.compile(pat, re.IGNORECASE)
+
 
 # (tactic, technique_id, technique_name) keyed by lowercase keyword/phrase
 _INDEX: Dict[str, Tuple[str, str, str]] = {
@@ -68,7 +81,7 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "uac bypass": ("privilege-escalation", "T1548.002", "Bypass User Account Control"),
     "token impersonation": ("privilege-escalation", "T1134.001", "Token Impersonation/Theft"),
     "pass the hash": ("privilege-escalation", "T1550.002", "Pass the Hash"),
-    "pth": ("privilege-escalation", "T1550.002", "Pass the Hash"),
+    "pass-the-hash": ("privilege-escalation", "T1550.002", "Pass the Hash"),
     "pass the ticket": ("privilege-escalation", "T1550.003", "Pass the Ticket"),
     "kerberoasting": ("credential-access", "T1558.003", "Kerberoasting"),
     "as-rep roasting": ("credential-access", "T1558.004", "AS-REP Roasting"),
@@ -144,7 +157,8 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "dns tunneling": ("command-and-control", "T1071.004", "DNS"),
     "dns tunnel": ("command-and-control", "T1071.004", "DNS"),
     "domain fronting": ("command-and-control", "T1090.004", "Domain Fronting"),
-    "tor": ("command-and-control", "T1090.003", "Multi-hop Proxy"),
+    "tor network": ("command-and-control", "T1090.003", "Multi-hop Proxy"),
+    "via tor": ("command-and-control", "T1090.003", "Multi-hop Proxy"),
     "proxy": ("command-and-control", "T1090", "Proxy"),
     # ── Exfiltration ─────────────────────────────────────────────────────────
     "exfiltrat": ("exfiltration", "T1041", "Exfiltration Over C2 Channel"),
@@ -166,7 +180,63 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "vpn": ("initial-access", "T1078.002", "Domain Accounts"),
     "exploit public": ("initial-access", "T1190", "Exploit Public-Facing Application"),
     "sql injection": ("initial-access", "T1190", "Exploit Public-Facing Application"),
-    "rce": ("initial-access", "T1190", "Exploit Public-Facing Application"),
+    "remote code execution": ("initial-access", "T1190", "Exploit Public-Facing Application"),
+    # ── macOS-specific ───────────────────────────────────────────────────────
+    "osascript": ("execution", "T1059.002", "AppleScript"),
+    "applescript": ("execution", "T1059.002", "AppleScript"),
+    "osacompile": ("execution", "T1059.002", "AppleScript"),
+    "zsh -c": ("execution", "T1059.004", "Unix Shell"),
+    "curl | bash": ("execution", "T1059.004", "Unix Shell"),
+    "curl | sh": ("execution", "T1059.004", "Unix Shell"),
+    "curl | osascript": ("execution", "T1059.004", "Unix Shell"),
+    "launchd": ("persistence", "T1543.001", "Launch Agent"),
+    "launch daemon": ("persistence", "T1543.001", "Launch Agent"),
+    "launch agent": ("persistence", "T1543.001", "Launch Agent"),
+    "launchctl": ("persistence", "T1543.001", "Launch Agent"),
+    "loginitem": ("persistence", "T1547.009", "Shortcut Modification"),
+    "tcc database": ("defense-evasion", "T1548.006", "TCC Manipulation"),
+    "tcc.db": ("defense-evasion", "T1548.006", "TCC Manipulation"),
+    "transparency consent": ("defense-evasion", "T1548.006", "TCC Manipulation"),
+    "gatekeeper": ("defense-evasion", "T1553.001", "Gatekeeper Bypass"),
+    "quarantine attribute": ("defense-evasion", "T1553.001", "Gatekeeper Bypass"),
+    "notarization": ("defense-evasion", "T1553.001", "Gatekeeper Bypass"),
+    "mach-o": ("defense-evasion", "T1027", "Obfuscated Files or Information"),
+    "universal binary": ("defense-evasion", "T1027", "Obfuscated Files or Information"),
+    "keychain": ("credential-access", "T1555.003", "Credentials from Web Browsers"),
+    "security find-generic-password": (
+        "credential-access",
+        "T1555.003",
+        "Credentials from Web Browsers",
+    ),
+    "security find-internet-password": (
+        "credential-access",
+        "T1555.003",
+        "Credentials from Web Browsers",
+    ),
+    "session hijack": ("credential-access", "T1539", "Steal Web Session Cookie"),
+    "session cookie": ("credential-access", "T1539", "Steal Web Session Cookie"),
+    "telegram bot api": ("exfiltration", "T1567.002", "Exfiltration to Web Service"),
+    "telegram bot": ("exfiltration", "T1567.002", "Exfiltration to Web Service"),
+    "bot api": ("exfiltration", "T1567.002", "Exfiltration to Web Service"),
+    "discord webhook": ("exfiltration", "T1567.002", "Exfiltration to Web Service"),
+    "archive collected": ("collection", "T1560.001", "Archive via Utility"),
+    "zip archive": ("collection", "T1560.001", "Archive via Utility"),
+    "compress and exfil": ("collection", "T1560.001", "Archive via Utility"),
+    "nscreateobjec": ("defense-evasion", "T1620", "Reflective Code Loading"),
+    "in-memory execution": ("defense-evasion", "T1620", "Reflective Code Loading"),
+    "fileless": ("defense-evasion", "T1620", "Reflective Code Loading"),
+    "user execution": ("execution", "T1204.002", "Malicious File"),
+    "malicious file": ("execution", "T1204.002", "Malicious File"),
+    "open the file": ("execution", "T1204.002", "Malicious File"),
+    "spearphishing link": ("initial-access", "T1566.002", "Spearphishing Link"),
+    "linkedin lure": ("initial-access", "T1566.002", "Spearphishing Link"),
+    "fake job": ("initial-access", "T1566.002", "Spearphishing Link"),
+    "fake recruiter": ("initial-access", "T1566.002", "Spearphishing Link"),
+    "cryptocurrency wallet": ("collection", "T1530", "Data from Cloud Storage"),
+    "crypto wallet": ("collection", "T1005", "Data from Local System"),
+    "ledger live": ("collection", "T1005", "Data from Local System"),
+    "exodus wallet": ("collection", "T1005", "Data from Local System"),
+    "wallet seed": ("collection", "T1005", "Data from Local System"),
     # ── Supply Chain / CI-CD ─────────────────────────────────────────────────
     "software supply chain": ("initial-access", "T1195.001", "Compromise Software Supply Chain"),
     "dependency confusion": ("initial-access", "T1195.001", "Compromise Software Supply Chain"),
@@ -215,17 +285,19 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "ddos": ("impact", "T1499", "Endpoint Denial of Service"),
 }
 
+# Pre-compile patterns with word-boundary anchors where applicable.
+_PATTERNS: Dict[str, re.Pattern] = {kw: _compile(kw) for kw in _INDEX}
+
 
 def map_attack(text: str) -> str:
     """Map free-form threat text to ATT&CK techniques.
 
     Returns JSON with matched techniques, their tactic, and the keyword evidence.
     """
-    low = text.lower()
     seen: Dict[str, dict] = {}
 
     for keyword, (tactic, tid, name) in _INDEX.items():
-        if keyword in low:
+        if _PATTERNS[keyword].search(text):
             if tid not in seen:
                 seen[tid] = {
                     "id": tid,

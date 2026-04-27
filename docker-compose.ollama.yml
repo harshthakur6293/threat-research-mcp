@@ -1,0 +1,38 @@
+# Air-gapped SOC deployment — threat-research-mcp + Ollama (fully offline)
+# Usage:
+#   docker compose -f docker-compose.ollama.yml up
+#   Then pull a model:  docker exec -it ollama ollama pull llama3.2
+
+services:
+  threat-research-mcp:
+    build: .
+    image: threat-research-mcp:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - THREAT_MCP_OFFLINE=true    # hard-fail on any outbound call from tools
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ./playbook:/app/playbook
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+    driver: local
