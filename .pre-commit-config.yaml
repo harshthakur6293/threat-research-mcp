@@ -1,24 +1,24 @@
-# Pre-commit hooks — catch lint/format issues before they reach CI
+# Pre-commit hooks — mirror CI exactly so failures never reach GitHub
 #
 # First-time setup:
 #   pip install pre-commit
 #   pre-commit install
 #   pre-commit run --all-files   # verify clean baseline
 #
-# Before pushing, run the full CI check manually:
-#   make ci          (Linux/macOS)
+# Manual full check (same as `make ci`):
 #   python -m ruff check . && python -m ruff format --check . && python -m pytest tests/ -q
 
 repos:
-  # Ruff — linter + formatter (mirrors CI exactly, < 1s per commit)
+  # ── Ruff linter + formatter ────────────────────────────────────────────────
+  # Matches: `ruff check .` and `ruff format --check .` in ci.yml
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.8
     hooks:
-      - id: ruff          # ruff check --fix
+      - id: ruff
         args: [--fix]
-      - id: ruff-format   # ruff format
+      - id: ruff-format
 
-  # General hygiene
+  # ── General hygiene ────────────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -33,3 +33,34 @@ repos:
       - id: trailing-whitespace
         exclude: \.(svg|cast|md)$
       - id: debug-statements
+
+  # ── Pytest — runs in pre-commit's own managed venv (avoids system Python) ──
+  # Matches: `pytest -v --maxfail=1 --cov=... --cov-fail-under=65` in ci.yml
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest (full suite — mirrors CI)
+        language: python
+        entry: python -m pytest
+        args:
+          - tests/
+          - -q
+          - --no-header
+          - --tb=short
+          - -x
+          - --cov=src/threat_research_mcp
+          - --cov-fail-under=65
+        pass_filenames: false
+        always_run: true
+        additional_dependencies:
+          # Runtime deps (from pyproject.toml [project.dependencies])
+          - "pydantic>=2.7.0"
+          - "PyYAML>=6.0.1"
+          - "requests>=2.31.0"
+          - "mcp>=1.8.0"
+          # Test deps (from pyproject.toml [project.optional-dependencies.dev])
+          - "pytest>=8.0.0"
+          - "pytest-asyncio>=0.24.0"
+          - "pytest-cov>=5.0.0"
+          # Install the package itself so imports resolve
+          - "."
