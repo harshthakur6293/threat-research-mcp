@@ -2,9 +2,13 @@
 
 <div align="center">
 
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=18&duration=2800&pause=1200&color=00C853&center=true&vCenter=true&multiline=false&width=750&lines=Turn+threat+reports+into+detection+rules+%E2%80%94+instantly;STIX+2.1+%C2%B7+MISP+%C2%B7+ATT%26CK+Navigator+%C2%B7+Sigma+%C2%B7+KQL+%C2%B7+SPL;150%2B+ATT%26CK+keywords+%C2%B7+28+playbook+techniques;Offline-first+%C2%B7+Air-gapped+SOC+%C2%B7+No+LLM+inside+the+toolbox" alt="Threat Research MCP" />
+
+<br/>
+
 [![CI](https://github.com/harshthakur6293/threat-research-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/harshthakur6293/threat-research-mcp/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-104%20passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-110%20passing-brightgreen.svg)]()
 [![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io)
@@ -27,6 +31,12 @@
 Every SOC analyst knows the loop: a threat report lands, you spend two hours manually extracting IOCs, googling ATT&CK technique IDs, writing Sigma rules from scratch, then fighting your SIEM to validate them. Then the next report drops.
 
 This MCP breaks that loop. You paste a report (or point at a TAXII feed, STIX bundle, or MISP event) and your AI assistant orchestrates the full pipeline — IOC extraction → TTP mapping → hunt hypotheses → detection rules → Sigma quality scoring → ATT&CK Navigator heatmap — in one conversation.
+
+## Demo — Sapphire Sleet macOS analysis in one pipeline call
+
+<div align="center">
+<img src="demo/demo.svg" alt="threat-research-mcp pipeline demo" width="100%"/>
+</div>
 
 ---
 

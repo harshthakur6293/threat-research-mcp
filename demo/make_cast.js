@@ -1,0 +1,71 @@
+const fs = require("fs");
+const ESC = "";
+const C = (code) => `${ESC}[${code}m`;
+
+const frames = [
+  [0.3, "o", `${C("1;32")}>${C(0)} `],
+  [0.6, "o", "python -m threat_research_mcp"],
+  [1.0, "o", "\r\n"],
+  [1.3, "o", `${C(2)}# Sapphire Sleet macOS report -- Claude orchestrating...${C(0)}\r\n`],
+  [1.9, "o", "\r\n"],
+  [2.2, "o", `${C("1;36")}[+] run_pipeline_tool${C(0)}  text=<report>  log_sources=edr_macos,proxy_logs\r\n`],
+  [2.9, "o", "\r\n"],
+  [3.1, "o", `    Extracting IOCs...\r`],
+  [3.8, "o", `${C("32")}[+]${C(0)} IOCs extracted\r\n`],
+  [4.0, "o", `    IPs:     ${C("1;31")}185.220.101.47${C(0)}  ${C("1;31")}195.133.88.12${C(0)}\r\n`],
+  [4.2, "o", `    Domains: ${C("1;31")}zoomus-sdk[.]com${C(0)}  ${C("1;31")}cdn.apple-cdn[.]org${C(0)}\r\n`],
+  [4.4, "o", `    Hash:    ${C("33")}a3f8c2d19e1b4f72...abcdef${C(0)}  (SHA-256)\r\n`],
+  [4.9, "o", "\r\n"],
+  [5.1, "o", `    Mapping ATT&CK techniques...\r`],
+  [5.8, "o", `${C("32")}[+]${C(0)} 7 techniques mapped\r\n`],
+  [5.9, "o", "\r\n"],
+  [6.1, "o", `    ${C("1;33")}T1059.002${C(0)}  AppleScript/osascript          ${C(35)}execution${C(0)}\r\n`],
+  [6.3, "o", `    ${C("1;33")}T1543.001${C(0)}  Launch Agent persistence       ${C(35)}persistence${C(0)}\r\n`],
+  [6.5, "o", `    ${C("1;33")}T1548.006${C(0)}  TCC database manipulation      ${C(35)}priv-esc${C(0)}\r\n`],
+  [6.7, "o", `    ${C("1;33")}T1555.003${C(0)}  Keychain credential access     ${C(35)}cred-access${C(0)}\r\n`],
+  [6.9, "o", `    ${C("1;33")}T1539   ${C(0)}  Session cookie theft           ${C(35)}cred-access${C(0)}\r\n`],
+  [7.1, "o", `    ${C("1;33")}T1567.002${C(0)}  Telegram Bot API exfiltration  ${C(35)}exfiltration${C(0)}\r\n`],
+  [7.3, "o", `    ${C("1;33")}T1204.002${C(0)}  User execution: malicious file ${C(35)}execution${C(0)}\r\n`],
+  [7.8, "o", "\r\n"],
+  [8.0, "o", `    Generating hunt hypotheses (edr_macos)...\r`],
+  [8.6, "o", `${C("32")}[+]${C(0)} Hunt hypotheses ready\r\n`],
+  [8.8, "o", "\r\n"],
+  [9.0, "o", `    ${C(2)}Hypothesis -> T1059.002${C(0)}\r\n`],
+  [9.2, "o", `    ${C(36)}KQL:${C(0)} DeviceProcessEvents\r\n`],
+  [9.35, "o", `         | where OSPlatform == "macOS"\r\n`],
+  [9.5, "o", `         | where FileName == "osascript"\r\n`],
+  [9.65, "o", `         | where InitiatingProcessFileName in~ ("Safari","Chrome","Zoom")\r\n`],
+  [10.0, "o", "\r\n"],
+  [10.3, "o", `${C("1;36")}[+] score_sigma${C(0)}  (T1059.002 rule)\r\n`],
+  [10.9, "o", "\r\n"],
+  [11.2, "o", `    Specificity  ${C(32)}[####.]${C(0)}  4/5\r\n`],
+  [11.5, "o", `    Coverage     ${C(32)}[###..]${C(0)}  3/5\r\n`],
+  [11.8, "o", `    FP Risk      ${C(32)}[##...]${C(0)}  2/5  (low)\r\n`],
+  [12.1, "o", `    Overall      ${C("1;32")}[####.]  4/5  production-ready${C(0)}\r\n`],
+  [12.6, "o", "\r\n"],
+  [12.9, "o", `${C("1;36")}[+] navigator_layer${C(0)}\r\n`],
+  [13.3, "o", `    ${C(32)}[+]${C(0)} ATT&CK Navigator 4.5 layer ready\r\n`],
+  [13.6, "o", `    ${C(2)}Drag into https://mitre-attack.github.io/attack-navigator/${C(0)}\r\n`],
+  [14.0, "o", "\r\n"],
+  [14.3, "o", `${C("1;36")}[+] misp_push_sigma${C(0)}  event_id=1234  technique=T1059.002\r\n`],
+  [14.9, "o", `    ${C(32)}[+]${C(0)} Sigma rule -> MISP event 1234, attribute 5678\r\n`],
+  [15.4, "o", "\r\n"],
+  [15.7, "o", `${C("1;32")}-------------------------------------------------${C(0)}\r\n`],
+  [15.9, "o", `${C(1)}  Pipeline complete${C(0)}\r\n`],
+  [16.1, "o", "  7 techniques  |  7 hunt hypotheses  |  7 Sigma rules\r\n"],
+  [16.3, "o", "  Navigator layer ready  |  Score 4/5  |  Rule pushed to MISP\r\n"],
+  [16.5, "o", `${C("1;32")}-------------------------------------------------${C(0)}\r\n`],
+  [17.3, "o", "\r\n"],
+  [17.6, "o", `${C("1;32")}>${C(0)} `],
+  [19.8, "o", ""],
+];
+
+const header = JSON.stringify({
+  version: 2, width: 110, height: 34,
+  timestamp: 1745712000,
+  title: "threat-research-mcp | Research -> Hunt -> Detection",
+});
+
+const lines = [header, ...frames.map((f) => JSON.stringify(f))].join("\n") + "\n";
+fs.writeFileSync("demo/demo.cast", lines, "utf8");
+console.log(`Wrote demo.cast (${lines.length} bytes)`);
