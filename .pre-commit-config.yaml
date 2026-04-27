@@ -1,38 +1,39 @@
-# Pre-commit hooks for threat-research-mcp
-# Install: pip install pre-commit && pre-commit install
-# Run manually: pre-commit run --all-files
+# Pre-commit hooks — prevent CI failures before they reach GitHub
+# Install: pre-commit install && pre-commit install --hook-type pre-push
+# Run all manually: pre-commit run --all-files
 
 repos:
-  # Ruff - Fast Python linter and formatter
+  # Ruff — linter + formatter (mirrors CI exactly)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.11.8
     hooks:
-      # Run the linter
-      - id: ruff
+      - id: ruff          # ruff check --fix  (runs on commit)
         args: [--fix]
-      # Run the formatter
-      - id: ruff-format
+      - id: ruff-format   # ruff format        (runs on commit)
 
-  # General file checks
+  # General hygiene checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
       - id: check-yaml
-      - id: check-added-large-files
-        args: ['--maxkb=1000']
-      - id: check-merge-conflict
+        exclude: ^demo/          # skip cast/svg files
       - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: end-of-file-fixer
+        exclude: \.(svg|cast)$   # skip binary-ish generated files
+      - id: trailing-whitespace
+        exclude: \.(svg|cast|md)$
       - id: debug-statements
 
-  # Local pytest hook - runs tests before commit
+  # Pytest — runs on pre-push only (not on every commit, to stay fast)
   - repo: local
     hooks:
-      - id: pytest-check
-        name: pytest
-        entry: python -m pytest -q --maxfail=1
+      - id: pytest
+        name: pytest (full suite)
         language: system
+        entry: python -m pytest tests/ -q --no-header --tb=short -x
         pass_filenames: false
         always_run: true
-        stages: [commit]
+        stages: [pre-push]
