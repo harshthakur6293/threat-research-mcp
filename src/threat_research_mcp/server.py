@@ -63,6 +63,7 @@ try:
 except Exception:
     FastMCP = None
 
+mcp = None
 
 if FastMCP:
     mcp = FastMCP("Threat Research MCP")
