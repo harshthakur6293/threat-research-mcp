@@ -7,7 +7,6 @@ tool functions rather than the server entry point.
 from __future__ import annotations
 
 import importlib
-import sys
 
 
 def test_schemas_package_imports_cleanly():
