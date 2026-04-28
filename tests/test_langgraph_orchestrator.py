@@ -403,7 +403,7 @@ class TestEndToEndWorkflow:
             - IP: 185.220.101.45
             - Domain: malicious-c2.com
             - Hash: 1234567890abcdef
-            
+
             Techniques:
             - T1059.001: PowerShell
             - T1071.001: Web Protocol C2

@@ -5,17 +5,33 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "threat-research-mcp"
 version = "1.0.0"
-description = "Threat research MCP — feed ingestion, IOC extraction, ATT&CK mapping, hunt hypothesis generation, and detection rule generation."
+description = "Threat research MCP — IOC extraction, ATT&CK mapping, hunt hypotheses, Sigma rules, and ATT&CK Navigator layers — works with Claude Desktop, Cline, Cursor, Copilot, and any MCP-compatible client."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Harsh Thakur" }]
+keywords = ["mcp", "threat-intelligence", "mitre-attack", "sigma", "detection-engineering", "cybersecurity"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+]
 dependencies = [
   "pydantic>=2.7.0",
   "PyYAML>=6.0.1",
-  "mcp>=1.8.0; python_version >= '3.10'",
+  "mcp>=1.8.0",
   "requests>=2.31.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/harshthakur6293/threat-research-mcp"
+Repository = "https://github.com/harshthakur6293/threat-research-mcp"
+"Bug Tracker" = "https://github.com/harshthakur6293/threat-research-mcp/issues"
 
 [project.optional-dependencies]
 dev = [

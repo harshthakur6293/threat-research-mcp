@@ -57,17 +57,17 @@ def demo_simple_workflow():
     state = create_initial_state(
         intel_text="""
         APT29 (Cozy Bear) campaign detected using PowerShell for initial access.
-        
+
         Observed IOCs:
         - IP: 185.220.101.45
         - Domain: malicious-c2.com
         - Hash: 1234567890abcdef1234567890abcdef
-        
+
         ATT&CK Techniques:
         - T1059.001: PowerShell
         - T1071.001: Application Layer Protocol - Web Protocols
         - T1566.001: Phishing - Spearphishing Attachment
-        
+
         The adversary used encoded PowerShell commands to download and execute
         a second-stage payload from the C2 server.
         """,

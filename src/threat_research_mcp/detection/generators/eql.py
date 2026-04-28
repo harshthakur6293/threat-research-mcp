@@ -99,7 +99,7 @@ class EQLGenerator:
         """Generate EQL rule for PowerShell download cradles."""
         query = """process where event.type == "start" and
   process.name : ("powershell.exe", "pwsh.exe") and
-  process.args : ("*DownloadString*", "*DownloadFile*", "*Net.WebClient*", 
+  process.args : ("*DownloadString*", "*DownloadFile*", "*Net.WebClient*",
                   "*Invoke-WebRequest*", "*Invoke-RestMethod*", "*Start-BitsTransfer*") and
   not process.args : "*Windows\\\\System32*"
 """
@@ -151,7 +151,7 @@ class EQLGenerator:
     def _generate_web_protocols_rule(self) -> EQLRule:
         """Generate EQL rule for suspicious web protocols."""
         query = """network where event.type == "connection" and
-  process.name : ("powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe", 
+  process.name : ("powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe",
                   "mshta.exe", "regsvr32.exe", "rundll32.exe") and
   destination.port in (80, 443, 8080, 8443) and
   not cidrmatch(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")

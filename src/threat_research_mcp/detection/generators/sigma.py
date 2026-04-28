@@ -7,10 +7,19 @@ to various target formats (Splunk, Elastic, QRadar, etc.).
 Reference: https://github.com/SigmaHQ/sigma
 """
 
+import uuid
 import yaml
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import dataclass, field
+
+# Deterministic UUID namespace for all rules — same input → same rule ID
+_RULE_NS = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # uuid.NAMESPACE_URL
+
+
+def _rule_uuid(technique_id: str, variant: str = "") -> str:
+    """Stable UUID derived from technique + variant; survives git round-trips."""
+    return str(uuid.uuid5(_RULE_NS, f"threat-research-mcp/{technique_id}/{variant}"))
 
 
 @dataclass
@@ -91,7 +100,7 @@ class SigmaGenerator:
 
     def generate_from_technique(
         self, technique_id: str, technique_name: str, environment: str = "windows"
-    ) -> SigmaRule:
+    ) -> Optional[SigmaRule]:
         """
         Generate Sigma rule from ATT&CK technique.
 
@@ -104,24 +113,19 @@ class SigmaGenerator:
             Generated Sigma rule
         """
 
-        # Generate rule based on technique
-        if technique_id == "T1059.001":  # PowerShell
+        # Return a hand-written rule or None — never a generic stub
+        if technique_id == "T1059.001":
             return self._generate_powershell_rule()
-        elif technique_id == "T1003.001":  # LSASS Memory
+        elif technique_id == "T1003.001":
             return self._generate_lsass_rule()
-        elif technique_id == "T1071.001":  # Web Protocols
+        elif technique_id == "T1071.001":
             return self._generate_web_protocols_rule()
-        else:
-            # Generic rule
-            return self._generate_generic_rule(technique_id, technique_name)
+        return None  # caller must handle missing rule rather than generating garbage
 
     def _generate_powershell_rule(self) -> SigmaRule:
-        """Generate Sigma rule for PowerShell execution."""
-        import uuid
-
         return SigmaRule(
             title="Suspicious PowerShell Download Cradle",
-            id=str(uuid.uuid4()),
+            id=_rule_uuid("T1059.001", "download-cradle"),
             status="experimental",
             description="Detects PowerShell download cradles used to fetch and execute malicious payloads",
             author="Threat Research MCP",
@@ -161,12 +165,9 @@ class SigmaGenerator:
         )
 
     def _generate_lsass_rule(self) -> SigmaRule:
-        """Generate Sigma rule for LSASS memory access."""
-        import uuid
-
         return SigmaRule(
             title="LSASS Memory Access for Credential Dumping",
-            id=str(uuid.uuid4()),
+            id=_rule_uuid("T1003.001", "process-access"),
             status="experimental",
             description="Detects processes accessing LSASS memory for credential dumping",
             author="Threat Research MCP",
@@ -204,12 +205,9 @@ class SigmaGenerator:
         )
 
     def _generate_web_protocols_rule(self) -> SigmaRule:
-        """Generate Sigma rule for suspicious web protocols."""
-        import uuid
-
         return SigmaRule(
             title="Suspicious Outbound Connection from Uncommon Process",
-            id=str(uuid.uuid4()),
+            id=_rule_uuid("T1071.001", "network-connection"),
             status="experimental",
             description="Detects suspicious outbound connections from processes that typically don't make network connections",
             author="Threat Research MCP",
@@ -266,39 +264,6 @@ class SigmaGenerator:
             level="medium",
             references=[
                 "https://attack.mitre.org/techniques/T1071/001/",
-            ],
-        )
-
-    def _generate_generic_rule(self, technique_id: str, technique_name: str) -> SigmaRule:
-        """Generate generic Sigma rule for unknown technique."""
-        import uuid
-
-        return SigmaRule(
-            title=f"Suspicious Activity - {technique_name}",
-            id=str(uuid.uuid4()),
-            status="experimental",
-            description=f"Detects suspicious activity related to {technique_name} ({technique_id})",
-            author="Threat Research MCP",
-            date=datetime.now().strftime("%Y-%m-%d"),
-            tags=[
-                f"attack.{technique_id.lower()}",
-            ],
-            logsource={
-                "product": "windows",
-                "category": "process_creation",
-            },
-            detection={
-                "selection": {
-                    "CommandLine|contains": technique_name.lower(),
-                },
-                "condition": "selection",
-            },
-            falsepositives=[
-                "Unknown - manual review required",
-            ],
-            level="medium",
-            references=[
-                f"https://attack.mitre.org/techniques/{technique_id}/",
             ],
         )
 

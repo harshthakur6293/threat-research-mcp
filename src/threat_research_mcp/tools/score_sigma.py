@@ -100,15 +100,40 @@ def score_sigma_rule(sigma_yaml: str) -> str:
         )
 
     # ── Coverage (1-5) ────────────────────────────────────────────────────────
+    # Measures how broadly applicable the rule is across environments.
+    # NOTE: Sigma rules target ONE logsource — "coverage" here means how broadly
+    # that logsource applies (process_creation is broad; sysmon ETW is narrow).
     logsource_matches = sum(1 for src in _WIDE_COVERAGE_SOURCES if src in text)
-    # Count distinct SIEM query blocks (rough proxy for coverage breadth)
-    siem_count = sum(1 for kw in ["splunk:", "kql:", "elastic:"] if kw in text.lower())
-    coverage = min(5, 1 + logsource_matches + siem_count)
 
-    if siem_count >= 3:
-        rationale.append("Good coverage: queries for Splunk, KQL, and Elastic present.")
-    elif siem_count == 0:
-        rationale.append("Limited coverage: no SIEM-specific queries found.")
+    # Detect named detection selection blocks (not 'condition') — more blocks = richer rule
+    detection_block = re.search(r"^detection:\s*\n((?:[ \t]+.+\n?)+)", text, re.MULTILINE)
+    selection_count = 0
+    if detection_block:
+        selection_count = len(
+            [
+                ln
+                for ln in detection_block.group(1).splitlines()
+                if re.match(r"\s{2,4}\w+\s*:", ln) and "condition:" not in ln
+            ]
+        )
+
+    # Rule has level metadata (sign of a complete, reviewable rule)
+    has_level = bool(
+        re.search(r"^level:\s*(critical|high|medium|low)", text, re.MULTILINE | re.IGNORECASE)
+    )
+
+    coverage = min(
+        5, 1 + logsource_matches + (1 if selection_count > 2 else 0) + (1 if has_level else 0)
+    )
+
+    if logsource_matches >= 2:
+        rationale.append(
+            f"Good logsource coverage: matches {logsource_matches} standard source(s)."
+        )
+    elif logsource_matches == 0:
+        rationale.append("Narrow logsource — verify this matches your SIEM's log category.")
+    if selection_count > 2:
+        rationale.append(f"{selection_count} detection blocks — richer rule logic.")
 
     # ── FP risk (1 = low, 5 = high) ──────────────────────────────────────────
     broad_hits = _count_matches(text, _BROAD_PATTERNS)
@@ -146,12 +171,35 @@ def score_sigma_rule(sigma_yaml: str) -> str:
 
 
 def score_sigma_from_technique(technique_id: str) -> str:
-    """Score the built-in Sigma rule for a technique from the generate_sigma tool."""
+    """Score the built-in Sigma rule for an ATT&CK technique.
+
+    Correctly extracts rule_yaml from the JSON envelope returned by
+    generate_sigma_for_technique before passing raw YAML to the scorer.
+    """
     from threat_research_mcp.tools.generate_sigma import generate_sigma_for_technique
 
-    sigma_yaml = generate_sigma_for_technique(technique_id)
-    result = json.loads(score_sigma_rule(sigma_yaml))
+    # generate_sigma_for_technique returns a JSON envelope — extract the YAML from it
+    envelope_json = generate_sigma_for_technique(technique_id)
+    envelope = json.loads(envelope_json)
+    rule_yaml: str = envelope.get("rule_yaml", "") or ""
+
+    if not rule_yaml:
+        return json.dumps(
+            {
+                "technique_id": technique_id.upper(),
+                "error": "No curated Sigma rule for this technique.",
+                "note": (
+                    "Generate a custom rule with generate_sigma_rule, or search "
+                    "SigmaHQ: https://github.com/SigmaHQ/sigma/search?q=" + technique_id.upper()
+                ),
+            },
+            indent=2,
+        )
+
+    result = json.loads(score_sigma_rule(rule_yaml))
     result["technique_id"] = technique_id.upper()
+    result["technique_name"] = envelope.get("technique_name", "")
+    result["rule_status"] = envelope.get("status", "unknown")
     return json.dumps(result, indent=2)
 
 

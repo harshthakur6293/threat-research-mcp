@@ -1,0 +1,608 @@
+{
+  "pipeline_stages": [
+    "ioc_extraction",
+    "ttp_mapping",
+    "hunt_hypotheses",
+    "sigma_detections"
+  ],
+  "summary": {
+    "text_chars_analyzed": 3286,
+    "iocs_extracted": 5,
+    "techniques_detected": 7,
+    "technique_ids": [
+      "T1005",
+      "T1071.001",
+      "T1555.001",
+      "T1548.006",
+      "T1059.002",
+      "T1567.002",
+      "T1543.001"
+    ],
+    "hunt_hypotheses_generated": 10,
+    "sigma_rules_generated": 7,
+    "enrichment_performed": false,
+    "log_source_filter": "all",
+    "stages_completed": [
+      "ioc_extraction",
+      "ttp_mapping",
+      "hunt_hypotheses",
+      "sigma_detections"
+    ],
+    "next_steps": [
+      "Run enrich_iocs_tool with extracted IOCs to get reputation data (or re-run run_pipeline with enrich=True).",
+      "Run kql_for_technique / spl_for_technique / eql_for_technique for SIEM-native detection rules for: T1005, T1071.001, T1555.001, T1548.006, T1059.002.",
+      "Run yara_for_technique for file-based YARA scanning rules.",
+      "Deploy Sigma rules to your SIEM using sigmac or pySigma. Pair with Security-Detections-MCP (list_by_mitre) to check existing coverage."
+    ]
+  },
+  "ingestion": {
+    "skipped": "No sources_config provided."
+  },
+  "iocs": {
+    "ips": [
+      {
+        "value": "185.220.101.47",
+        "confidence": 1.0,
+        "label": "MALICIOUS"
+      },
+      {
+        "value": "195.133.88.12",
+        "confidence": 1.0,
+        "label": "MALICIOUS"
+      }
+    ],
+    "domains": [
+      {
+        "value": "cdn.apple",
+        "confidence": 1.0,
+        "label": "MALICIOUS"
+      },
+      {
+        "value": "TCC.db",
+        "confidence": 1.0,
+        "label": "MALICIOUS"
+      },
+      {
+        "value": "api.telegram.org",
+        "confidence": 0.975,
+        "label": "MALICIOUS"
+      }
+    ],
+    "urls": [],
+    "hashes": [
+      {
+        "value": "a3f8c2d19e1b4f72deadbeefcafebabedeadbeefcafebabedeadbeefcafebabe",
+        "confidence": 1.0,
+        "label": "HASH"
+      }
+    ],
+    "emails": [],
+    "filtered_fps": [
+      {
+        "value": "com.apple.webkit.service.plist",
+        "type": "domain",
+        "reason": "file extension TLD"
+      },
+      {
+        "value": "com.apple.quarantine",
+        "type": "domain",
+        "reason": "macOS bundle ID"
+      }
+    ],
+    "notes": "Context-aware extraction. Threshold: 0.35. Filtered 2 candidates (RFC1918, bundles, benign, low-confidence). Verify all IOCs before blocking."
+  },
+  "enrichment": {
+    "skipped": "Set enrich=True to query VirusTotal / OTX / AbuseIPDB / URLhaus."
+  },
+  "techniques": {
+    "techniques": [
+      {
+        "id": "T1005",
+        "name": "Data from Local System",
+        "tactic": "collection",
+        "url": "https://attack.mitre.org/techniques/T1005/",
+        "evidence": [
+          "cryptocurrency wallet",
+          "ledger live",
+          "exodus wallet",
+          "wallet seed"
+        ],
+        "confidence": 0.497,
+        "confidence_label": "LOW"
+      },
+      {
+        "id": "T1071.001",
+        "name": "Web Protocols",
+        "tactic": "command-and-control",
+        "url": "https://attack.mitre.org/techniques/T1071/001/",
+        "evidence": [
+          "beacon",
+          "cobalt strike"
+        ],
+        "confidence": 0.519,
+        "confidence_label": "LOW"
+      },
+      {
+        "id": "T1555.001",
+        "name": "Keychain",
+        "tactic": "credential-access",
+        "url": "https://attack.mitre.org/techniques/T1555/001/",
+        "evidence": [
+          "keychain",
+          "security find-generic-password",
+          "security find-internet-password"
+        ],
+        "confidence": 0.473,
+        "confidence_label": "LOW"
+      },
+      {
+        "id": "T1548.006",
+        "name": "TCC Manipulation",
+        "tactic": "defense-evasion",
+        "url": "https://attack.mitre.org/techniques/T1548/006/",
+        "evidence": [
+          "tcc database",
+          "tcc.db"
+        ],
+        "confidence": 0.58,
+        "confidence_label": "LOW"
+      },
+      {
+        "id": "T1059.002",
+        "name": "AppleScript",
+        "tactic": "execution",
+        "url": "https://attack.mitre.org/techniques/T1059/002/",
+        "evidence": [
+          "osascript",
+          "applescript"
+        ],
+        "confidence": 0.501,
+        "confidence_label": "LOW"
+      },
+      {
+        "id": "T1567.002",
+        "name": "Exfiltration to Web Service",
+        "tactic": "exfiltration",
+        "url": "https://attack.mitre.org/techniques/T1567/002/",
+        "evidence": [
+          "telegram bot api",
+          "telegram bot",
+          "bot api",
+          "discord webhook"
+        ],
+        "confidence": 0.537,
+        "confidence_label": "LOW"
+      },
+      {
+        "id": "T1543.001",
+        "name": "Launch Agent",
+        "tactic": "persistence",
+        "url": "https://attack.mitre.org/techniques/T1543/001/",
+        "evidence": [
+          "launch agent",
+          "launchctl"
+        ],
+        "confidence": 0.501,
+        "confidence_label": "LOW"
+      }
+    ],
+    "count": 7,
+    "suppressed": [
+      {
+        "id": "T1071",
+        "name": "Application Layer Protocol",
+        "tactic": "command-and-control",
+        "url": "https://attack.mitre.org/techniques/T1071/",
+        "evidence": [
+          "c2"
+        ],
+        "confidence": 0.395,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1539",
+        "name": "Steal Web Session Cookie",
+        "tactic": "credential-access",
+        "url": "https://attack.mitre.org/techniques/T1539/",
+        "evidence": [
+          "session cookie"
+        ],
+        "confidence": 0.36,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1553.001",
+        "name": "Gatekeeper Bypass",
+        "tactic": "defense-evasion",
+        "url": "https://attack.mitre.org/techniques/T1553/001/",
+        "evidence": [
+          "gatekeeper"
+        ],
+        "confidence": 0.36,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1204.002",
+        "name": "Malicious File",
+        "tactic": "execution",
+        "url": "https://attack.mitre.org/techniques/T1204/002/",
+        "evidence": [
+          "user execution"
+        ],
+        "confidence": 0.36,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1566.002",
+        "name": "Spearphishing Link",
+        "tactic": "initial-access",
+        "url": "https://attack.mitre.org/techniques/T1566/002/",
+        "evidence": [
+          "fake recruiter"
+        ],
+        "confidence": 0.36,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1021.004",
+        "name": "SSH",
+        "tactic": "lateral-movement",
+        "url": "https://attack.mitre.org/techniques/T1021/004/",
+        "evidence": [
+          "ssh"
+        ],
+        "confidence": 0.29,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1505",
+        "name": "Server Software Component",
+        "tactic": "persistence",
+        "url": "https://attack.mitre.org/techniques/T1505/",
+        "evidence": [
+          "backdoor"
+        ],
+        "confidence": 0.395,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1547.009",
+        "name": "Shortcut Modification",
+        "tactic": "persistence",
+        "url": "https://attack.mitre.org/techniques/T1547/009/",
+        "evidence": [
+          "loginitem"
+        ],
+        "confidence": 0.36,
+        "confidence_label": "SUPPRESSED"
+      },
+      {
+        "id": "T1068",
+        "name": "Exploitation for Privilege Escalation",
+        "tactic": "privilege-escalation",
+        "url": "https://attack.mitre.org/techniques/T1068/",
+        "evidence": [
+          "privilege escalation"
+        ],
+        "confidence": 0.395,
+        "confidence_label": "SUPPRESSED"
+      }
+    ],
+    "suppressed_count": 9,
+    "confidence_threshold": 0.45,
+    "source_quality": "unknown",
+    "note": "9 technique(s) suppressed (confidence < 0.45). Lower confidence_threshold or check suppressed[] to see them."
+  },
+  "hunt_hypotheses": {
+    "hypotheses": [
+      {
+        "technique_id": "T1071.001",
+        "technique_name": "C2 over HTTP/HTTPS",
+        "tactic": "command-and-control",
+        "log_source_key": "proxy_logs",
+        "log_source": "Web Proxy / Firewall HTTP Logs",
+        "hypothesis": "Beaconing pattern \u2014 periodic HTTP/S requests to uncommon domains at regular intervals.",
+        "queries": {
+          "splunk": "index=proxy | stats count, dc(url) as unique_urls, range(_time) as duration by src_ip, dest_host | where count > 20 AND unique_urls < 3 AND duration > 3600 | sort -count",
+          "kql": "CommonSecurityLog | where DeviceVendor == \"Zscaler\" or DeviceVendor == \"Palo Alto Networks\" | summarize RequestCount=count(), UniqueURLs=dcount(RequestURL), Duration=datetime_diff(\"second\", max(TimeGenerated), min(TimeGenerated)) by SourceIP, DestinationHostName | where RequestCount > 20 and UniqueURLs < 3 and Duration > 3600",
+          "elastic": "network.protocol:http AND destination.port:(80 OR 443)"
+        },
+        "sigma_logsource": "proxy"
+      },
+      {
+        "technique_id": "T1071.001",
+        "technique_name": "C2 over HTTP/HTTPS",
+        "tactic": "command-and-control",
+        "log_source_key": "dns_logs",
+        "log_source": "DNS Query Logs",
+        "hypothesis": "High-volume DNS queries to newly registered or low-reputation domains from workstations.",
+        "queries": {
+          "splunk": "index=dns query_type=A | stats count by src_ip, query | where count > 50 | lookup threat_intel_domains query OUTPUT reputation | where reputation=\"malicious\"",
+          "kql": "DnsEvents | where QueryType == \"A\" | summarize count() by ClientIP, Name | where count_ > 50",
+          "elastic": "dns.question.type:A AND source.ip:*"
+        },
+        "sigma_logsource": "dns"
+      },
+      {
+        "technique_id": "T1548.006",
+        "technique_name": "TCC Database Manipulation",
+        "tactic": "defense-evasion",
+        "log_source_key": "macos_unified_log",
+        "log_source": "macOS Unified Log \u2014 TCC / sqlite3",
+        "hypothesis": "sqlite3 writing to TCC.db to grant permissions \u2014 bypasses macOS privacy controls without user prompt.",
+        "queries": {
+          "splunk": "index=macos_edr process_name=sqlite3 target_path=\"*TCC.db*\" | table _time, host, user, cmdline, parent_process",
+          "kql": "DeviceFileEvents | where OSPlatform == \"macOS\" | where FileName == \"TCC.db\" | where InitiatingProcessFileName == \"sqlite3\" | project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine",
+          "elastic": "process.name:sqlite3 AND file.path:*TCC.db*"
+        },
+        "sigma_logsource": "macos/file_event"
+      },
+      {
+        "technique_id": "T1548.006",
+        "technique_name": "TCC Database Manipulation",
+        "tactic": "defense-evasion",
+        "log_source_key": "edr_macos",
+        "log_source": "EDR on macOS \u2014 TCC parent-child chain",
+        "hypothesis": "Finder or SystemUIServer directed by an untrusted process to rename or move the com.apple.TCC directory.",
+        "queries": {
+          "splunk": "index=macos_edr process_name IN (\"Finder\",\"SystemUIServer\") | where NOT match(parent_process_name,\"(?i)(loginwindow|launchd)\") | table _time, host, user, parent_process_name, cmdline",
+          "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where FileName in~ (\"Finder\",\"SystemUIServer\") | where not InitiatingProcessFileName in~ (\"loginwindow\",\"launchd\") | project TimeGenerated, DeviceName, AccountName, FileName, InitiatingProcessFileName, InitiatingProcessCommandLine",
+          "elastic": "process.name:(Finder OR SystemUIServer) AND NOT process.parent.name:(loginwindow OR launchd)"
+        },
+        "sigma_logsource": "macos/process_creation"
+      },
+      {
+        "technique_id": "T1059.002",
+        "technique_name": "AppleScript / osascript Execution",
+        "tactic": "execution",
+        "log_source_key": "macos_unified_log",
+        "log_source": "macOS Unified Log",
+        "hypothesis": "osascript invoked with -e flag or reading from stdin \u2014 common pattern for in-memory AppleScript execution.",
+        "queries": {
+          "splunk": "index=macos_edr process_name=osascript | search cmdline=\"-e *\" OR cmdline=\"*curl*\" OR cmdline=\"*http*\" | table _time, host, user, cmdline, parent_process",
+          "kql": "DeviceProcessEvents | where DeviceName has \"macOS\" or OSPlatform == \"macOS\" | where FileName == \"osascript\" | where ProcessCommandLine has_any (\"-e\",\"curl\",\"http\",\"downloadString\") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName",
+          "elastic": "process.name:osascript AND (process.command_line:*-e* OR process.command_line:*curl* OR process.command_line:*http*)"
+        },
+        "sigma_logsource": "macos/process_creation"
+      },
+      {
+        "technique_id": "T1059.002",
+        "technique_name": "AppleScript / osascript Execution",
+        "tactic": "execution",
+        "log_source_key": "edr_macos",
+        "log_source": "EDR on macOS \u2014 Process Events",
+        "hypothesis": "Script Editor or osascript spawning curl, python, or bash \u2014 multi-stage download chain.",
+        "queries": {
+          "splunk": "index=macos_edr (parent_process_name=\"Script Editor\" OR parent_process_name=\"osascript\") child_process_name IN (\"curl\",\"python\",\"python3\",\"bash\",\"sh\") | table _time, host, user, parent_process_name, cmdline",
+          "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where InitiatingProcessFileName in~ (\"osascript\",\"Script Editor\") | where FileName in~ (\"curl\",\"python\",\"python3\",\"bash\",\"sh\") | project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, ProcessCommandLine",
+          "elastic": "process.parent.name:(osascript OR Script Editor) AND process.name:(curl OR python OR python3 OR bash OR sh)"
+        },
+        "sigma_logsource": "macos/process_creation"
+      },
+      {
+        "technique_id": "T1567.002",
+        "technique_name": "Exfiltration via Web Service (Telegram Bot API)",
+        "tactic": "exfiltration",
+        "log_source_key": "proxy_logs",
+        "log_source": "Web Proxy / Network Flow Logs",
+        "hypothesis": "Large HTTPS POST to api.telegram.org from a non-Telegram process \u2014 Telegram Bot API used as exfil channel.",
+        "queries": {
+          "splunk": "index=proxy dest_host=\"api.telegram.org\" cs_method=POST | where bytes_out > 50000 | stats sum(bytes_out) as total_bytes, count by src_ip, user_agent | where NOT match(user_agent,\"(?i)(TelegramDesktop|Telegram for)\")",
+          "kql": "CommonSecurityLog | where DestinationHostName =~ \"api.telegram.org\" and RequestMethod == \"POST\" and SentBytes > 50000 | where not UserAgent has_any (\"TelegramDesktop\",\"Telegram for\") | summarize TotalBytes=sum(SentBytes), Requests=count() by SourceIP, UserAgent",
+          "elastic": "destination.domain:api.telegram.org AND http.request.method:POST AND NOT http.request.headers.user_agent:*Telegram*"
+        },
+        "sigma_logsource": "proxy"
+      },
+      {
+        "technique_id": "T1567.002",
+        "technique_name": "Exfiltration via Web Service (Telegram Bot API)",
+        "tactic": "exfiltration",
+        "log_source_key": "edr_macos",
+        "log_source": "EDR on macOS \u2014 curl to Telegram",
+        "hypothesis": "curl or python making POST requests to api.telegram.org with sendDocument or sendMessage endpoints \u2014 data exfil via bot.",
+        "queries": {
+          "splunk": "index=macos_edr process_name IN (\"curl\",\"python3\",\"python\") cmdline IN (\"*api.telegram.org*\",\"*sendDocument*\",\"*sendMessage*\") | table _time, host, user, cmdline",
+          "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where FileName in~ (\"curl\",\"python3\",\"python\") | where ProcessCommandLine has \"api.telegram.org\" | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine",
+          "elastic": "process.name:(curl OR python3 OR python) AND process.command_line:*api.telegram.org*"
+        },
+        "sigma_logsource": "macos/process_creation"
+      },
+      {
+        "technique_id": "T1543.001",
+        "technique_name": "Launch Agent / Launch Daemon Persistence",
+        "tactic": "persistence",
+        "log_source_key": "macos_unified_log",
+        "log_source": "macOS Unified Log \u2014 launchd",
+        "hypothesis": "New .plist file written to /Library/LaunchDaemons/ or ~/Library/LaunchAgents/ pointing to a non-Apple binary.",
+        "queries": {
+          "splunk": "index=macos_edr event_type=file_create target_path IN (\"/Library/LaunchDaemons/*\",\"/Library/LaunchAgents/*\",\"*/Library/LaunchAgents/*\") | where NOT match(target_path,\"(?i)(apple|microsoft|google/chrome|dropbox)\") | table _time, host, user, target_path, process_name",
+          "kql": "DeviceFileEvents | where OSPlatform == \"macOS\" | where FolderPath has_any (\"/Library/LaunchDaemons/\",\"/Library/LaunchAgents/\") | where not FolderPath has_any (\"Apple\",\"Microsoft\",\"Dropbox\",\"Google/Chrome\") | project TimeGenerated, DeviceName, AccountName, FolderPath, FileName, InitiatingProcessFileName",
+          "elastic": "file.path:(*LaunchDaemons* OR *LaunchAgents*) AND NOT file.path:(*Apple* OR *Microsoft*) AND event.action:creation"
+        },
+        "sigma_logsource": "macos/file_event"
+      },
+      {
+        "technique_id": "T1543.001",
+        "technique_name": "Launch Agent / Launch Daemon Persistence",
+        "tactic": "persistence",
+        "log_source_key": "edr_macos",
+        "log_source": "EDR on macOS \u2014 launchctl load",
+        "hypothesis": "launchctl used to load a new daemon from an unusual path \u2014 persistence installation.",
+        "queries": {
+          "splunk": "index=macos_edr process_name=launchctl cmdline=\"*load*\" | where NOT match(cmdline,\"(?i)(apple|system/library|/usr/libexec)\") | table _time, host, user, cmdline, parent_process",
+          "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where FileName == \"launchctl\" | where ProcessCommandLine has \"load\" | where not ProcessCommandLine has_any (\"/System/Library\",\"/usr/libexec\",\"Apple\") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName",
+          "elastic": "process.name:launchctl AND process.command_line:*load* AND NOT process.command_line:*/System/Library/*"
+        },
+        "sigma_logsource": "macos/process_creation"
+      }
+    ],
+    "count": 10,
+    "techniques_covered": [
+      "T1071.001",
+      "T1059.002",
+      "T1548.006",
+      "T1567.002",
+      "T1543.001"
+    ],
+    "techniques_not_in_playbook": [
+      "T1005",
+      "T1555.001"
+    ],
+    "note": "Techniques not in playbook can be enriched via mitre-attack-mcp (get_datacomponents_detecting_technique, get_procedure_examples_by_technique)."
+  },
+  "detections": {
+    "sigma": {
+      "rules": [
+        {
+          "technique_id": "T1005",
+          "technique_name": "Unknown Technique",
+          "status": "no_curated_rule",
+          "rule_yaml": "",
+          "rule": null,
+          "fallback": {
+            "sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1005",
+            "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1005",
+            "splunk_security_content": "https://research.splunk.com/detections/?q=T1005"
+          },
+          "note": "No production Sigma rule authored for T1005. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."
+        },
+        {
+          "technique_id": "T1071.001",
+          "technique_name": "C2 over Web Protocols",
+          "status": "curated",
+          "rule_yaml": "title: Suspicious Outbound Connection from Uncommon Process\nid: e8655cff-0ee2-5229-888e-c260ed0a17c3\nstatus: experimental\ndescription: Detects suspicious outbound connections from processes that typically\n  don't make network connections\nauthor: Threat Research MCP\ndate: '2026-04-27'\nlogsource:\n  product: windows\n  category: network_connection\ndetection:\n  selection:\n    Image|endswith:\n    - \\powershell.exe\n    - \\cmd.exe\n    - \\wscript.exe\n    - \\cscript.exe\n    - \\mshta.exe\n    - \\regsvr32.exe\n    - \\rundll32.exe\n    Initiated: 'true'\n  filter:\n    DestinationIp|startswith:\n    - '10.'\n    - 192.168.\n    - 172.16.\n    - 172.17.\n    - 172.18.\n    - 172.19.\n    - 172.20.\n    - 172.21.\n    - 172.22.\n    - 172.23.\n    - 172.24.\n    - 172.25.\n    - 172.26.\n    - 172.27.\n    - 172.28.\n    - 172.29.\n    - 172.30.\n    - 172.31.\n  condition: selection and not filter\nlevel: medium\ntags:\n- attack.command_and_control\n- attack.t1071.001\nfalsepositives:\n- Legitimate administrative scripts\n- Software update mechanisms\nreferences:\n- https://attack.mitre.org/techniques/T1071/001/\n",
+          "rule": {
+            "title": "Suspicious Outbound Connection from Uncommon Process",
+            "id": "e8655cff-0ee2-5229-888e-c260ed0a17c3",
+            "status": "experimental",
+            "description": "Detects suspicious outbound connections from processes that typically don't make network connections",
+            "author": "Threat Research MCP",
+            "date": "2026-04-27",
+            "logsource": {
+              "product": "windows",
+              "category": "network_connection"
+            },
+            "detection": {
+              "selection": {
+                "Image|endswith": [
+                  "\\powershell.exe",
+                  "\\cmd.exe",
+                  "\\wscript.exe",
+                  "\\cscript.exe",
+                  "\\mshta.exe",
+                  "\\regsvr32.exe",
+                  "\\rundll32.exe"
+                ],
+                "Initiated": "true"
+              },
+              "filter": {
+                "DestinationIp|startswith": [
+                  "10.",
+                  "192.168.",
+                  "172.16.",
+                  "172.17.",
+                  "172.18.",
+                  "172.19.",
+                  "172.20.",
+                  "172.21.",
+                  "172.22.",
+                  "172.23.",
+                  "172.24.",
+                  "172.25.",
+                  "172.26.",
+                  "172.27.",
+                  "172.28.",
+                  "172.29.",
+                  "172.30.",
+                  "172.31."
+                ]
+              },
+              "condition": "selection and not filter"
+            },
+            "level": "medium",
+            "tags": [
+              "attack.command_and_control",
+              "attack.t1071.001"
+            ],
+            "falsepositives": [
+              "Legitimate administrative scripts",
+              "Software update mechanisms"
+            ],
+            "references": [
+              "https://attack.mitre.org/techniques/T1071/001/"
+            ]
+          }
+        },
+        {
+          "technique_id": "T1555.001",
+          "technique_name": "Unknown Technique",
+          "status": "no_curated_rule",
+          "rule_yaml": "",
+          "rule": null,
+          "fallback": {
+            "sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1555.001",
+            "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1555.001",
+            "splunk_security_content": "https://research.splunk.com/detections/?q=T1555.001"
+          },
+          "note": "No production Sigma rule authored for T1555.001. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."
+        },
+        {
+          "technique_id": "T1548.006",
+          "technique_name": "Unknown Technique",
+          "status": "no_curated_rule",
+          "rule_yaml": "",
+          "rule": null,
+          "fallback": {
+            "sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1548.006",
+            "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1548.006",
+            "splunk_security_content": "https://research.splunk.com/detections/?q=T1548.006"
+          },
+          "note": "No production Sigma rule authored for T1548.006. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."
+        },
+        {
+          "technique_id": "T1059.002",
+          "technique_name": "Unknown Technique",
+          "status": "no_curated_rule",
+          "rule_yaml": "",
+          "rule": null,
+          "fallback": {
+            "sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1059.002",
+            "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1059.002",
+            "splunk_security_content": "https://research.splunk.com/detections/?q=T1059.002"
+          },
+          "note": "No production Sigma rule authored for T1059.002. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."
+        },
+        {
+          "technique_id": "T1567.002",
+          "technique_name": "Exfiltration to Cloud Storage",
+          "status": "no_curated_rule",
+          "rule_yaml": "",
+          "rule": null,
+          "fallback": {
+            "sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1567.002",
+            "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1567.002",
+            "splunk_security_content": "https://research.splunk.com/detections/?q=T1567.002"
+          },
+          "note": "No production Sigma rule authored for T1567.002. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."
+        },
+        {
+          "technique_id": "T1543.001",
+          "technique_name": "Unknown Technique",
+          "status": "no_curated_rule",
+          "rule_yaml": "",
+          "rule": null,
+          "fallback": {
+            "sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1543.001",
+            "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1543.001",
+            "splunk_security_content": "https://research.splunk.com/detections/?q=T1543.001"
+          },
+          "note": "No production Sigma rule authored for T1543.001. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."
+        }
+      ],
+      "count": 7,
+      "curated_count": 1,
+      "stub_count": 6
+    },
+    "note": "Use kql_for_technique / spl_for_technique / eql_for_technique for SIEM-specific detection rules. Use yara_for_technique for file-based scanning rules."
+  }
+}

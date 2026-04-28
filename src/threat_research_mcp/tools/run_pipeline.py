@@ -91,8 +91,9 @@ def run_pipeline(
 
     # Build flat list for enrichment
     all_iocs: list[str] = []
-    for key in ("ips", "domains", "urls", "md5s", "sha1s", "sha256s"):
-        all_iocs.extend(iocs_raw.get(key, []))
+    for key in ("ips", "domains", "urls", "hashes"):
+        for item in iocs_raw.get(key, []):
+            all_iocs.append(item.get("value", "") if isinstance(item, dict) else item)
 
     # ── Stage 3: IOC enrichment (optional) ────────────────────────────────────
     if enrich and all_iocs:
@@ -154,9 +155,7 @@ def run_pipeline(
         result["detections"] = {"sigma": {"rules": []}}
 
     # ── Summary ───────────────────────────────────────────────────────────────
-    ioc_total = sum(
-        len(iocs_raw.get(k, [])) for k in ("ips", "domains", "urls", "md5s", "sha1s", "sha256s")
-    )
+    ioc_total = sum(len(iocs_raw.get(k, [])) for k in ("ips", "domains", "urls", "hashes"))
     hypotheses_count = len(result.get("hunt_hypotheses", {}).get("hypotheses", []))
     sigma_count = len(result.get("detections", {}).get("sigma", {}).get("rules", []))
 

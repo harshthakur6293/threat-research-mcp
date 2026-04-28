@@ -89,13 +89,42 @@ def generate_sigma(title: str, behavior: str, logsource: str = "process_creation
 
 
 def generate_sigma_for_technique(technique_id: str, environment: str = "windows") -> str:
-    """Generate a Sigma rule for a specific ATT&CK technique ID."""
-    name = _TECHNIQUE_NAMES.get(technique_id.upper(), "Unknown Technique")
-    rule = _generator.generate_from_technique(technique_id.upper(), name, environment)
+    """Return a curated Sigma rule for a specific ATT&CK technique ID.
+
+    When no hand-written rule exists, returns a structured 'no_curated_rule' response
+    with search links rather than generating a plausible-looking but useless stub.
+    """
+    tid = technique_id.upper()
+    name = _TECHNIQUE_NAMES.get(tid, "Unknown Technique")
+    rule = _generator.generate_from_technique(tid, name, environment)
+
+    if rule is None:
+        return json.dumps(
+            {
+                "technique_id": tid,
+                "technique_name": name,
+                "status": "no_curated_rule",
+                "rule_yaml": "",
+                "rule": None,
+                "fallback": {
+                    "sigmahq_search": f"https://github.com/SigmaHQ/sigma/search?q={tid}",
+                    "elastic_rules": f"https://github.com/elastic/detection-rules/search?q={tid}",
+                    "splunk_security_content": f"https://research.splunk.com/detections/?q={tid}",
+                },
+                "note": (
+                    f"No production Sigma rule authored for {tid}. "
+                    "Use the fallback links to find community rules, or call "
+                    "generate_sigma() with a specific behavior description."
+                ),
+            },
+            indent=2,
+        )
+
     return json.dumps(
         {
-            "technique_id": technique_id.upper(),
+            "technique_id": tid,
             "technique_name": name,
+            "status": "curated",
             "rule_yaml": rule.to_yaml(),
             "rule": rule.to_dict(),
         },
@@ -104,9 +133,24 @@ def generate_sigma_for_technique(technique_id: str, environment: str = "windows"
 
 
 def generate_sigma_bundle(technique_ids: list[str], environment: str = "windows") -> str:
-    """Generate Sigma rules for a list of ATT&CK technique IDs."""
+    """Generate Sigma rules for a list of ATT&CK technique IDs.
+
+    Includes both curated rules and no_curated_rule stubs so the caller
+    can see exactly which techniques are covered vs. which need community rules.
+    """
     results = []
+    curated = 0
     for tid in technique_ids:
         parsed = json.loads(generate_sigma_for_technique(tid, environment))
         results.append(parsed)
-    return json.dumps({"rules": results, "count": len(results)}, indent=2)
+        if parsed.get("status") == "curated":
+            curated += 1
+    return json.dumps(
+        {
+            "rules": results,
+            "count": len(results),
+            "curated_count": curated,
+            "stub_count": len(results) - curated,
+        },
+        indent=2,
+    )

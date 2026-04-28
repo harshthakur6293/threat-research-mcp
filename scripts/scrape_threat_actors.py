@@ -339,7 +339,7 @@ def generate_profile_from_scraped_data(scraped_data: Dict[str, Any]) -> str:
     },
     "sample_intel": """
     [Synthesize from CISA advisory + Mandiant blog + Talos report]
-    
+
     IOCs:
     - Domain: example.com
     - IP: 1.2.3.4

@@ -57,6 +57,8 @@ def test_all_tool_modules_importable():
         "threat_research_mcp.tools.navigator_export",
         "threat_research_mcp.tools.score_sigma",
         "threat_research_mcp.tools.misp_bridge",
+        "threat_research_mcp.tools.generate_html_report",
+        "threat_research_mcp.tools.attack_lookup",
     ]
     for name in tool_modules:
         mod = importlib.import_module(name)
@@ -77,4 +79,4 @@ def test_server_registers_expected_tools():
     else:
         tool_count = len(getattr(server.mcp, "_tools", {}))
 
-    assert tool_count >= 25, f"Expected ≥25 tools registered, got {tool_count}"
+    assert tool_count >= 30, f"Expected ≥30 tools registered, got {tool_count}"

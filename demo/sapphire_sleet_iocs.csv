@@ -1,0 +1,7 @@
+type,value,confidence,label
+ips,185.220.101.47,1.0,MALICIOUS
+ips,195.133.88.12,1.0,MALICIOUS
+domains,cdn.apple,1.0,MALICIOUS
+domains,TCC.db,1.0,MALICIOUS
+domains,api.telegram.org,0.975,MALICIOUS
+hashes,a3f8c2d19e1b4f72deadbeefcafebabedeadbeefcafebabedeadbeefcafebabe,1.0,HASH

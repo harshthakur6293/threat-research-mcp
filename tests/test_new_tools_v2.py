@@ -315,7 +315,9 @@ class TestMacOSExtensionBlocklist:
         from threat_research_mcp.tools.extract_iocs import extract_iocs_from_text
 
         result = extract_iocs_from_text("C2 domain check02id.com beacons every 60 seconds.")
-        assert "check02id.com" in result["domains"]
+        # domains are rich dicts: {"value": str, "confidence": float, "label": str}
+        domain_values = [d["value"] if isinstance(d, dict) else d for d in result["domains"]]
+        assert "check02id.com" in domain_values
 
 
 # ── macOS Playbook Entries ────────────────────────────────────────────────────

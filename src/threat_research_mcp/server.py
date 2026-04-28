@@ -57,6 +57,23 @@ from threat_research_mcp.tools.misp_bridge import (
     push_sigma_to_misp,
     create_misp_event_from_pipeline,
 )
+from threat_research_mcp.tools.get_operator_context import get_operator_context_json
+from threat_research_mcp.tools.generate_ioc_sigma import generate_ioc_sigma_bundle
+from threat_research_mcp.tools.campaign_tracker import (
+    update_campaign,
+    get_campaign,
+    list_campaigns,
+    correlate_iocs_across_campaigns,
+)
+from threat_research_mcp.tools.generate_html_report import generate_html_report
+from threat_research_mcp.tools.attack_lookup import (
+    get_technique,
+    get_threat_groups,
+    get_techniques_by_group,
+    attribute_to_group,
+    get_data_sources,
+    get_mitigations,
+)
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -569,6 +586,234 @@ if FastMCP:
             pipeline_result: JSON string from run_pipeline_tool.
         """
         return create_misp_event_from_pipeline(pipeline_result)
+
+    # ── Operator Context ──────────────────────────────────────────────────────
+
+    @mcp.tool()
+    def get_operator_context() -> str:
+        """Return the loaded operator profile (operator.yaml) for this SOC environment.
+
+        Shows which SIEMs, log sources, and environment settings are active.
+        All pipeline tools use this profile to filter output to what you can actually use.
+
+        Copy operator.yaml.example → operator.yaml and edit to configure your environment.
+        Without operator.yaml the tool uses safe defaults and works out of the box.
+
+        Returns: JSON with org, SIEM, log sources, confidence threshold, integrations.
+        """
+        return get_operator_context_json()
+
+    # ── Tier 1 IOC Blocklist Sigma Generator ─────────────────────────────────
+
+    @mcp.tool()
+    def ioc_sigma_bundle(
+        iocs_json: str,
+        campaign: str = "",
+        source_url: str = "",
+        technique_ids: str = "",
+    ) -> str:
+        """Generate Tier 1 IOC blocklist Sigma rules from extracted IOCs.
+
+        100% programmatic — no LLM, no templates. Every rule contains only the
+        actual IOC values from your specific report. Produces:
+          - Network blocklist rule (IPs + domains → network connection events)
+          - File hash blocklist rule (MD5 / SHA1 / SHA256 → process creation)
+          - Email sender blocklist rule (if email IOCs present)
+
+        Each rule includes a TTL expiry date: IPs ~30d, domains ~180d, hashes permanent.
+
+        Args:
+            iocs_json:     JSON string from extract_iocs tool.
+            campaign:      Optional campaign name for rule titles.
+            source_url:    Source report URL embedded in rule references.
+            technique_ids: Comma-separated ATT&CK IDs to tag rules with.
+
+        Returns: JSON with all generated Sigma YAML rules, IOC counts, TTL calendar.
+        """
+        iocs = __import__("json").loads(iocs_json) if isinstance(iocs_json, str) else iocs_json
+        tids = [t.strip() for t in technique_ids.split(",") if t.strip()]
+        return generate_ioc_sigma_bundle(
+            iocs=iocs,
+            campaign=campaign,
+            source_url=source_url,
+            technique_ids=tids or None,
+        )
+
+    # ── Campaign Tracker ──────────────────────────────────────────────────────
+
+    @mcp.tool()
+    def campaign_update(
+        campaign_id: str,
+        iocs_json: str = "",
+        techniques_json: str = "",
+        source_url: str = "",
+        actor: str = "",
+        description: str = "",
+        tags: str = "",
+    ) -> str:
+        """Add intelligence from a new report to a campaign (creates it if new).
+
+        IOCs and techniques accumulate across multiple reports for the same campaign,
+        enabling temporal correlation and full actor-picture visibility.
+
+        Args:
+            campaign_id:    Campaign slug (e.g. "axios-supply-chain"). Created if new.
+            iocs_json:      JSON string from extract_iocs tool (optional).
+            techniques_json: JSON string from map_ttp tool (optional).
+            source_url:     URL of the source report being added.
+            actor:          Threat actor name (optional).
+            description:    Campaign description (optional).
+            tags:           Comma-separated tags (e.g. "ransomware,financial-sector").
+
+        Returns: JSON with campaign summary and what changed.
+        """
+        import json as _json
+
+        iocs = _json.loads(iocs_json) if iocs_json.strip() else {}
+        raw_techs = _json.loads(techniques_json) if techniques_json.strip() else {}
+        techniques = raw_techs.get("techniques", []) if isinstance(raw_techs, dict) else []
+        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+        return update_campaign(
+            campaign_id=campaign_id,
+            iocs=iocs,
+            techniques=techniques,
+            source_url=source_url,
+            actor=actor,
+            description=description,
+            tags=tag_list,
+        )
+
+    @mcp.tool()
+    def campaign_get(campaign_id: str) -> str:
+        """Retrieve the full accumulated state of a threat campaign.
+
+        Returns all IOCs, techniques, detection counts, and sources collected
+        across every report added to this campaign.
+        """
+        return get_campaign(campaign_id)
+
+    @mcp.tool()
+    def campaign_list() -> str:
+        """List all threat campaigns in the campaign store.
+
+        Returns a summary of each campaign: actor, technique count, IOC count,
+        last updated, and number of reports ingested.
+        """
+        return list_campaigns()
+
+    @mcp.tool()
+    def campaign_correlate_ioc(ioc_value: str) -> str:
+        """Find which campaigns share a specific IOC value.
+
+        Searches all campaigns for the given IP, domain, hash, or email.
+        Multi-campaign presence significantly increases attribution confidence.
+
+        Args:
+            ioc_value: The IOC to search for (exact match).
+        """
+        return correlate_iocs_across_campaigns(ioc_value)
+
+    @mcp.tool()
+    def generate_threat_report(
+        pipeline_json: str,
+        title: str = "",
+        output_path: str = "",
+    ) -> str:
+        """Generate a self-contained interactive HTML threat intelligence report.
+
+        Takes the JSON output from run_pipeline and produces a browser-ready
+        HTML file with:
+          - IOC table with confidence scores and malicious/victim labels
+          - ATT&CK tactic heatmap (click to filter the graph)
+          - D3.js layered force graph: IOCs → Techniques → Tactics with
+            confidence rings, clickable nodes, zoom/pan, tactic filter buttons
+          - Hunt hypothesis cards with tabbed SPL / KQL / Elastic queries
+            (click a technique card or graph node to drill down)
+          - Sigma rule cards with expandable YAML and community rule search links
+
+        Args:
+            pipeline_json: JSON string from run_pipeline().
+            title: Optional report title (auto-generated if blank).
+            output_path: Optional file path (defaults to threat_report_<ts>.html in cwd).
+
+        Returns: JSON with html_path, file size in bytes, and open_cmd.
+        """
+        return generate_html_report(pipeline_json, title=title, output_path=output_path)
+
+    # ── ATT&CK Database (requires: python scripts/build_attack_db.py) ─────────
+    @mcp.tool()
+    def attack_get_technique(technique_id: str) -> str:
+        """Return the full ATT&CK technique card: description, platforms, data sources,
+        detection guidance, sub-techniques, and mitigations.
+
+        Requires the local ATT&CK database (run scripts/build_attack_db.py once).
+
+        Args:
+            technique_id: ATT&CK ID — e.g. "T1059.001" or "T1059" for parent + all sub-techniques.
+        """
+        return get_technique(technique_id)
+
+    @mcp.tool()
+    def attack_get_threat_groups(technique_id: str) -> str:
+        """Return threat groups (APT / cybercrime) known to use a given ATT&CK technique.
+
+        Use this after mapping techniques from a report to identify which actors typically
+        use those TTPs. Follow up with attack_attribute_to_group when you have multiple
+        techniques for stronger attribution.
+
+        Args:
+            technique_id: ATT&CK technique ID, e.g. "T1059.001".
+        """
+        return get_threat_groups(technique_id)
+
+    @mcp.tool()
+    def attack_get_techniques_by_group(group_name_or_id: str) -> str:
+        """Return all ATT&CK techniques attributed to a specific threat group.
+
+        Accepts group ID (G0010), common name (APT28), or alias (Fancy Bear).
+        Returns tactic distribution so you can see which kill-chain phases the
+        group focuses on.
+
+        Args:
+            group_name_or_id: Group ID, name, or alias — e.g. "APT28", "G0010", "Fancy Bear".
+        """
+        return get_techniques_by_group(group_name_or_id)
+
+    @mcp.tool()
+    def attack_attribute_to_group(technique_ids: str) -> str:
+        """Rank threat groups by technique overlap with a set of observed TTPs.
+
+        Given the technique IDs extracted from a threat report, this computes
+        Jaccard similarity against every known group and returns the top 10
+        candidate actors — supporting attribution hypotheses.
+
+        Args:
+            technique_ids: Comma-separated ATT&CK IDs from the report,
+                           e.g. "T1059.001,T1003.001,T1071.001,T1543.001".
+        """
+        return attribute_to_group(technique_ids)
+
+    @mcp.tool()
+    def attack_get_data_sources(technique_id: str) -> str:
+        """Return the log sources and SIEM queries needed to detect a technique.
+
+        Maps ATT&CK data source labels (e.g. 'Process: Process Creation') to
+        practical Splunk, Sentinel KQL, and Elastic queries. Use this to plan
+        your logging coverage before deploying detection rules.
+
+        Args:
+            technique_id: ATT&CK technique ID, e.g. "T1059.001".
+        """
+        return get_data_sources(technique_id)
+
+    @mcp.tool()
+    def attack_get_mitigations(technique_id: str) -> str:
+        """Return recommended ATT&CK mitigations (security controls) for a technique.
+
+        Args:
+            technique_id: ATT&CK technique ID, e.g. "T1059.001".
+        """
+        return get_mitigations(technique_id)
 
 
 def main() -> None:

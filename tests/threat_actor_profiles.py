@@ -64,7 +64,7 @@ THREAT_ACTOR_PROFILES: Dict[str, Dict[str, Any]] = {
         deployed Cobalt Strike beacons, and exfiltrated sensitive data to cloud storage. The campaign
         demonstrated advanced tradecraft including token impersonation, Kerberoasting, and living-off-the-land
         techniques using PowerShell and legitimate Windows utilities.
-        
+
         IOCs:
         - Domain: avsvmcloud.com
         - IP: 13.59.205.66
@@ -122,7 +122,7 @@ THREAT_ACTOR_PROFILES: Dict[str, Dict[str, Any]] = {
         keyloggers to capture credentials and used Mimikatz to dump LSASS memory. Lateral movement
         occurred via RDP using compromised credentials. The group exfiltrated documents and emails
         to C2 infrastructure at 185.86.148.222.
-        
+
         IOCs:
         - Domain: netmediaresources.com
         - IP: 185.86.148.222
@@ -193,7 +193,7 @@ THREAT_ACTOR_PROFILES: Dict[str, Dict[str, Any]] = {
         RDP and SMB using stolen credentials. APT41 exfiltrated patient records and intellectual property
         to C2 servers at update.iaacenter.com (103.85.24.158). The campaign demonstrated dual-use of
         espionage and ransomware deployment for financial gain.
-        
+
         IOCs:
         - Domain: update.iaacenter.com
         - IP: 103.85.24.158
@@ -254,7 +254,7 @@ THREAT_ACTOR_PROFILES: Dict[str, Dict[str, Any]] = {
         actor accessed cloud environments via stolen SAML tokens, bypassing MFA. Exfiltration occurred
         to attacker-controlled cloud storage. The campaign demonstrated extreme operational security,
         with dormancy periods and careful victim selection.
-        
+
         IOCs:
         - Domain: avsvmcloud.com
         - IP: 13.59.205.66
@@ -308,7 +308,7 @@ THREAT_ACTOR_PROFILES: Dict[str, Dict[str, Any]] = {
         scanning with NBTscan identified additional targets. Data was archived using 7-Zip and exfiltrated
         to C2 infrastructure at update-service.org (45.142.212.61). The campaign targeted defense contractors
         and government agencies with a focus on intellectual property theft.
-        
+
         IOCs:
         - Domain: update-service.org
         - IP: 45.142.212.61
@@ -372,7 +372,7 @@ THREAT_ACTOR_PROFILES: Dict[str, Dict[str, Any]] = {
         to harvest credentials and moved laterally to financial transaction systems. Lazarus manipulated
         SWIFT transactions and exfiltrated $81 million in cryptocurrency. The campaign also deployed wiper
         malware to destroy forensic evidence and disrupt recovery efforts.
-        
+
         IOCs:
         - Domain: nzssdm.com
         - IP: 185.220.101.45

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sapphire Sleet macOS Campaign — Threat Intelligence Report</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--accent:#58a6ff;
+  --green:#3fb950;--orange:#d29922;--red:#f85149;--purple:#bc8cff;
+  --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.5;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+h2{font-size:1.05rem;font-weight:700;margin-bottom:14px;color:var(--text);display:flex;align-items:center;gap:8px}
+h2 .icon{font-size:1.2rem}
+.container{max-width:1500px;margin:0 auto;padding:20px}
+.section{margin-bottom:36px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+
+/* Header */
+.report-header{background:linear-gradient(135deg,#161b22 0%,#0d1117 100%);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:20px}
+.report-badge{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#1f6feb,#388bfd);display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
+.report-title{font-size:1.4rem;font-weight:700;line-height:1.2}
+.report-meta{color:var(--muted);font-size:.8rem;margin-top:4px}
+.stage-badge{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:.68rem;color:var(--muted);margin:2px}
+
+/* Stat strip */
+.stat-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:24px}
+@media(max-width:1000px){.stat-strip{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:600px){.stat-strip{grid-template-columns:repeat(2,1fr)}}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;text-align:center}
+.stat-box:hover{border-color:var(--accent);transform:translateY(-1px);transition:.15s}
+.stat-num{font-size:2rem;font-weight:800;line-height:1}
+.stat-lbl{font-size:.72rem;color:var(--muted);margin-top:3px}
+
+/* IOC table */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{padding:8px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+td{padding:8px 14px;border-bottom:1px solid var(--border);font-size:.82rem}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.mono{font-family:'Cascadia Code','JetBrains Mono','Consolas',monospace;font-size:.78rem;word-break:break-all}
+.type-pill{display:inline-block;padding:1px 7px;border-radius:3px;font-size:.66rem;font-weight:700;background:var(--surface2);color:var(--muted);text-transform:uppercase}
+.lbl-pill{display:inline-block;padding:2px 9px;border-radius:10px;font-size:.68rem;font-weight:700}
+.lbl-MALICIOUS{background:#3d1a1a;color:#f85149;border:1px solid #f8514955}
+.lbl-VICTIM{background:#1a2d3d;color:#58a6ff;border:1px solid #58a6ff55}
+.lbl-RESEARCHER{background:#2d2d1a;color:#d29922;border:1px solid #d2992255}
+.lbl-UNKNOWN{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.conf-wrap{display:flex;align-items:center;gap:6px}
+.conf-track{width:72px;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.conf-fill{height:5px;border-radius:3px}
+.conf-pct{font-size:.72rem;color:var(--muted);min-width:30px}
+
+/* Heatmap */
+.heatmap-scroll{overflow-x:auto;padding-bottom:4px}
+.heatmap{display:flex;gap:6px;min-width:900px}
+.hm-col{flex:1;min-width:110px}
+.hm-head{padding:5px 8px;border-radius:5px 5px 0 0;font-size:.65rem;font-weight:700;text-align:center;color:#fff;text-transform:uppercase;letter-spacing:.04em}
+.hm-body{background:#21262d;border-radius:0 0 5px 5px;padding:4px;min-height:36px;cursor:pointer}
+.hm-body:hover{background:#30363d}
+.hm-cell{padding:3px 6px;border-radius:3px;font-size:.68rem;font-family:monospace;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hm-cell:hover{opacity:.75}
+.hm-empty{color:var(--muted);font-size:.7rem;text-align:center;padding:8px;font-style:italic}
+
+/* Graph */
+.graph-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.graph-btn{padding:4px 12px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);border-radius:4px;cursor:pointer;font-size:.75rem}
+.graph-btn:hover,.graph-btn.active{border-color:var(--accent);color:var(--accent)}
+.graph-filter{display:flex;gap:4px;flex-wrap:wrap}
+.tactic-filter-btn{padding:3px 10px;border-radius:10px;font-size:.65rem;font-weight:700;cursor:pointer;border:1px solid transparent;opacity:.5;transition:.15s}
+.tactic-filter-btn.on{opacity:1;border-color:currentColor}
+#graph-svg{width:100%;height:520px;background:var(--surface2);border-radius:var(--radius);border:1px solid var(--border);display:block}
+.graph-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:.73rem;color:var(--muted)}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Tooltip */
+#tooltip{position:fixed;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;font-size:.78rem;pointer-events:none;z-index:9999;max-width:280px;display:none;box-shadow:0 8px 24px #00000088}
+#tooltip .tt-id{font-family:monospace;font-weight:700;color:var(--accent);font-size:.85rem}
+#tooltip .tt-name{color:var(--text);margin-top:2px}
+#tooltip .tt-conf{color:var(--muted);margin-top:4px;font-size:.72rem}
+#tooltip .tt-ev{margin-top:6px;display:flex;flex-wrap:wrap;gap:3px}
+#tooltip .tt-chip{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-size:.68rem;font-family:monospace}
+
+/* Hypothesis panel */
+.hyp-panel{display:none;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:14px;margin-top:10px}
+.hyp-panel.show{display:block}
+.hyp-card{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:14px;margin-bottom:10px}
+.hyp-card:last-child{margin-bottom:0}
+.hyp-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.tac-badge{padding:2px 9px;border-radius:9px;font-size:.65rem;font-weight:700;color:#fff}
+.src-badge{font-size:.72rem;color:var(--muted)}
+.hyp-text{color:var(--muted);font-size:.82rem;margin-bottom:10px;line-height:1.5}
+.q-tabs{display:flex;gap:4px;margin-bottom:7px}
+.q-tab{padding:3px 11px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;font-size:.73rem}
+.q-tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.q-block{background:#0d1117;border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-family:'Cascadia Code','Consolas',monospace;font-size:.72rem;line-height:1.6;overflow-x:auto;white-space:pre;color:#e6edf3}
+.q-block.hide{display:none}
+
+/* Sigma cards */
+.sigma-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px;margin-bottom:10px;transition:.15s}
+.sigma-card:hover{border-color:#30363d;background:#1c2128}
+.sigma-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sigma-tid{font-family:monospace;font-weight:700;font-size:.9rem}
+.sigma-name{color:var(--muted);font-size:.82rem}
+.sigma-status-curated{color:var(--green);font-size:.72rem;font-weight:700}
+.sigma-status-stub{color:var(--muted);font-size:.72rem}
+.sigma-yaml-block{background:#0d1117;border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-family:'Cascadia Code','Consolas',monospace;font-size:.7rem;overflow-x:auto;white-space:pre;display:none;margin-top:10px;color:#e6edf3;max-height:400px;overflow-y:auto}
+.sigma-links{font-size:.78rem;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+.btn-toggle{background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 10px;cursor:pointer;font-size:.72rem}
+.btn-toggle:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Technique card */
+.tech-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid;border-radius:var(--radius);padding:12px 16px;margin-bottom:9px;cursor:pointer;transition:.15s}
+.tech-card:hover{background:#1c2128}
+.tech-card.selected{border-color:var(--accent)!important;background:#1c2128}
+.tech-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tech-tid{font-family:monospace;font-weight:700}
+.tech-nm{color:var(--muted);font-size:.82rem}
+.conf-mini{display:flex;align-items:center;gap:6px;flex:1;min-width:120px}
+.conf-track2{width:100px;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.conf-fill2{height:6px;border-radius:3px}
+.conf-lbl{font-size:.7rem;font-weight:700}
+.ev-chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:7px}
+.ev-chip{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 6px;font-size:.68rem;font-family:monospace}
+
+.no-data{color:var(--muted);text-align:center;padding:40px;font-size:.88rem}
+</style>
+</head>
+<body>
+<div id="tooltip">
+  <div class="tt-id" id="tt-id"></div>
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-conf" id="tt-conf"></div>
+  <div class="tt-ev" id="tt-ev"></div>
+</div>
+
+<div class="container">
+
+<!-- ── Header ────────────────────────────────────────────────────────────── -->
+<div class="report-header">
+  <div class="report-badge">&#128270;</div>
+  <div style="flex:1">
+    <div class="report-title" id="rpt-title"></div>
+    <div class="report-meta">
+      Generated <span id="rpt-ts"></span> &nbsp;·&nbsp; threat-research-mcp
+      &nbsp;·&nbsp; threshold <strong id="rpt-thr" style="color:var(--accent)"></strong>
+    </div>
+    <div style="margin-top:6px" id="stage-badges"></div>
+  </div>
+</div>
+
+<!-- ── Stat strip ─────────────────────────────────────────────────────────── -->
+<div class="stat-strip" id="stat-strip"></div>
+
+<!-- ── IOCs ──────────────────────────────────────────────────────────────── -->
+<div class="section">
+  <h2><span class="icon">&#128270;</span> Extracted Indicators of Compromise</h2>
+  <div class="card table-wrap">
+    <table id="ioc-tbl">
+      <thead><tr><th>Type</th><th>Value</th><th>Label</th><th>Confidence</th></tr></thead>
+      <tbody id="ioc-body"></tbody>
+    </table>
+    <div id="ioc-empty" class="no-data" style="display:none">No IOCs extracted.</div>
+  </div>
+</div>
+
+<!-- ── ATT&CK Heatmap ─────────────────────────────────────────────────────── -->
+<div class="section">
+  <h2><span class="icon">&#127919;</span> ATT&CK Technique Mapping</h2>
+  <div class="card" style="margin-bottom:14px">
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:10px">Click a tactic column to filter the graph below</div>
+    <div class="heatmap-scroll"><div class="heatmap" id="heatmap"></div></div>
+  </div>
+
+  <!-- Technique cards (clickable → hypothesis drill-down) -->
+  <div id="tech-cards-wrap"></div>
+
+  <!-- Suppressed -->
+  <div id="supp-wrap" style="display:none;margin-top:8px">
+    <details>
+      <summary style="cursor:pointer;color:var(--muted);font-size:.83rem;margin-bottom:8px">
+        &#9660; Suppressed techniques (below confidence threshold)
+      </summary>
+      <div id="supp-cards"></div>
+    </details>
+  </div>
+</div>
+
+<!-- ── Graph ──────────────────────────────────────────────────────────────── -->
+<div class="section">
+  <h2><span class="icon">&#128200;</span> IOC → Technique → Tactic Graph</h2>
+  <div class="card" style="padding:12px 16px">
+    <div class="graph-toolbar">
+      <button class="graph-btn" id="btn-reset">&#8634; Reset View</button>
+      <button class="graph-btn" id="btn-labels">Labels On</button>
+      <div style="flex:1"></div>
+      <div class="graph-filter" id="tactic-filters"></div>
+    </div>
+    <svg id="graph-svg"></svg>
+    <div class="graph-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#e74c3c"></div>IP / Domain</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#3498db"></div>Hash</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f39c12"></div>Email IOC</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#8e44ad;opacity:.85"></div>Tactic</div>
+      <div class="leg-item">
+        <svg width="32" height="10"><line x1="0" y1="5" x2="32" y2="5" stroke="#58a6ff" stroke-width="2"/></svg>
+        High confidence
+      </div>
+      <div class="leg-item">
+        <svg width="32" height="10"><line x1="0" y1="5" x2="32" y2="5" stroke="#30363d" stroke-width="1" stroke-dasharray="4,3"/></svg>
+        Low confidence
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Hypothesis drill-down panel (populated on tech card click) ─────────── -->
+<div class="section" id="hyp-section">
+  <h2><span class="icon">&#128270;</span> Hunt Hypotheses <span id="hyp-tech-label" style="font-weight:400;color:var(--muted);font-size:.85rem"></span></h2>
+  <div id="hyp-cards-wrap"></div>
+  <div id="hyp-empty" class="no-data" style="display:none">No hunt hypotheses in playbook for these techniques. Try adding them to playbook/atomic_tests.yaml.</div>
+</div>
+
+<!-- ── Sigma Detections ───────────────────────────────────────────────────── -->
+<div class="section">
+  <h2><span class="icon">&#128737;</span> Sigma Detection Rules</h2>
+  <div id="sigma-wrap"></div>
+  <div id="sigma-empty" class="no-data" style="display:none">No Sigma rules generated. Curated rules exist for T1059.001, T1003.001, T1071.001.</div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+const D = {"title": "Sapphire Sleet macOS Campaign — Threat Intelligence Report", "timestamp": "2026-04-28T01:39:00.997838Z", "summary": {"ioc_count": 6, "technique_count": 7, "suppressed_count": 9, "hypothesis_count": 10, "sigma_rule_count": 7, "stages": ["ioc_extraction", "ttp_mapping", "hunt_hypotheses", "sigma_detections"], "text_chars": 3286, "confidence_threshold": 0.45}, "ioc_rows": [{"value": "185.220.101.47", "confidence": 100, "label": "MALICIOUS", "type": "ips"}, {"value": "195.133.88.12", "confidence": 100, "label": "MALICIOUS", "type": "ips"}, {"value": "cdn.apple", "confidence": 100, "label": "MALICIOUS", "type": "domains"}, {"value": "TCC.db", "confidence": 100, "label": "MALICIOUS", "type": "domains"}, {"value": "api.telegram.org", "confidence": 98, "label": "MALICIOUS", "type": "domains"}, {"value": "a3f8c2d19e1b4f72deadbeefcafebabedeadbeefcafebabedeadbeefcafebabe", "confidence": 100, "label": "HASH", "type": "hashes"}], "techniques": [{"id": "T1005", "name": "Data from Local System", "tactic": "collection", "url": "https://attack.mitre.org/techniques/T1005/", "evidence": ["cryptocurrency wallet", "ledger live", "exodus wallet", "wallet seed"], "confidence": 0.497, "confidence_label": "LOW"}, {"id": "T1071.001", "name": "Web Protocols", "tactic": "command-and-control", "url": "https://attack.mitre.org/techniques/T1071/001/", "evidence": ["beacon", "cobalt strike"], "confidence": 0.519, "confidence_label": "LOW"}, {"id": "T1555.001", "name": "Keychain", "tactic": "credential-access", "url": "https://attack.mitre.org/techniques/T1555/001/", "evidence": ["keychain", "security find-generic-password", "security find-internet-password"], "confidence": 0.473, "confidence_label": "LOW"}, {"id": "T1548.006", "name": "TCC Manipulation", "tactic": "defense-evasion", "url": "https://attack.mitre.org/techniques/T1548/006/", "evidence": ["tcc database", "tcc.db"], "confidence": 0.58, "confidence_label": "LOW"}, {"id": "T1059.002", "name": "AppleScript", "tactic": "execution", "url": "https://attack.mitre.org/techniques/T1059/002/", "evidence": ["osascript", "applescript"], "confidence": 0.501, "confidence_label": "LOW"}, {"id": "T1567.002", "name": "Exfiltration to Web Service", "tactic": "exfiltration", "url": "https://attack.mitre.org/techniques/T1567/002/", "evidence": ["telegram bot api", "telegram bot", "bot api", "discord webhook"], "confidence": 0.537, "confidence_label": "LOW"}, {"id": "T1543.001", "name": "Launch Agent", "tactic": "persistence", "url": "https://attack.mitre.org/techniques/T1543/001/", "evidence": ["launch agent", "launchctl"], "confidence": 0.501, "confidence_label": "LOW"}], "suppressed": [{"id": "T1071", "name": "Application Layer Protocol", "tactic": "command-and-control", "url": "https://attack.mitre.org/techniques/T1071/", "evidence": ["c2"], "confidence": 0.395, "confidence_label": "SUPPRESSED"}, {"id": "T1539", "name": "Steal Web Session Cookie", "tactic": "credential-access", "url": "https://attack.mitre.org/techniques/T1539/", "evidence": ["session cookie"], "confidence": 0.36, "confidence_label": "SUPPRESSED"}, {"id": "T1553.001", "name": "Gatekeeper Bypass", "tactic": "defense-evasion", "url": "https://attack.mitre.org/techniques/T1553/001/", "evidence": ["gatekeeper"], "confidence": 0.36, "confidence_label": "SUPPRESSED"}, {"id": "T1204.002", "name": "Malicious File", "tactic": "execution", "url": "https://attack.mitre.org/techniques/T1204/002/", "evidence": ["user execution"], "confidence": 0.36, "confidence_label": "SUPPRESSED"}, {"id": "T1566.002", "name": "Spearphishing Link", "tactic": "initial-access", "url": "https://attack.mitre.org/techniques/T1566/002/", "evidence": ["fake recruiter"], "confidence": 0.36, "confidence_label": "SUPPRESSED"}, {"id": "T1021.004", "name": "SSH", "tactic": "lateral-movement", "url": "https://attack.mitre.org/techniques/T1021/004/", "evidence": ["ssh"], "confidence": 0.29, "confidence_label": "SUPPRESSED"}, {"id": "T1505", "name": "Server Software Component", "tactic": "persistence", "url": "https://attack.mitre.org/techniques/T1505/", "evidence": ["backdoor"], "confidence": 0.395, "confidence_label": "SUPPRESSED"}, {"id": "T1547.009", "name": "Shortcut Modification", "tactic": "persistence", "url": "https://attack.mitre.org/techniques/T1547/009/", "evidence": ["loginitem"], "confidence": 0.36, "confidence_label": "SUPPRESSED"}, {"id": "T1068", "name": "Exploitation for Privilege Escalation", "tactic": "privilege-escalation", "url": "https://attack.mitre.org/techniques/T1068/", "evidence": ["privilege escalation"], "confidence": 0.395, "confidence_label": "SUPPRESSED"}], "hypotheses": [{"technique_id": "T1071.001", "technique_name": "C2 over HTTP/HTTPS", "tactic": "command-and-control", "log_source_key": "proxy_logs", "log_source": "Web Proxy / Firewall HTTP Logs", "hypothesis": "Beaconing pattern — periodic HTTP/S requests to uncommon domains at regular intervals.", "queries": {"splunk": "index=proxy | stats count, dc(url) as unique_urls, range(_time) as duration by src_ip, dest_host | where count > 20 AND unique_urls < 3 AND duration > 3600 | sort -count", "kql": "CommonSecurityLog | where DeviceVendor == \"Zscaler\" or DeviceVendor == \"Palo Alto Networks\" | summarize RequestCount=count(), UniqueURLs=dcount(RequestURL), Duration=datetime_diff(\"second\", max(TimeGenerated), min(TimeGenerated)) by SourceIP, DestinationHostName | where RequestCount > 20 and UniqueURLs < 3 and Duration > 3600", "elastic": "network.protocol:http AND destination.port:(80 OR 443)"}, "sigma_logsource": "proxy"}, {"technique_id": "T1071.001", "technique_name": "C2 over HTTP/HTTPS", "tactic": "command-and-control", "log_source_key": "dns_logs", "log_source": "DNS Query Logs", "hypothesis": "High-volume DNS queries to newly registered or low-reputation domains from workstations.", "queries": {"splunk": "index=dns query_type=A | stats count by src_ip, query | where count > 50 | lookup threat_intel_domains query OUTPUT reputation | where reputation=\"malicious\"", "kql": "DnsEvents | where QueryType == \"A\" | summarize count() by ClientIP, Name | where count_ > 50", "elastic": "dns.question.type:A AND source.ip:*"}, "sigma_logsource": "dns"}, {"technique_id": "T1548.006", "technique_name": "TCC Database Manipulation", "tactic": "defense-evasion", "log_source_key": "macos_unified_log", "log_source": "macOS Unified Log — TCC / sqlite3", "hypothesis": "sqlite3 writing to TCC.db to grant permissions — bypasses macOS privacy controls without user prompt.", "queries": {"splunk": "index=macos_edr process_name=sqlite3 target_path=\"*TCC.db*\" | table _time, host, user, cmdline, parent_process", "kql": "DeviceFileEvents | where OSPlatform == \"macOS\" | where FileName == \"TCC.db\" | where InitiatingProcessFileName == \"sqlite3\" | project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine", "elastic": "process.name:sqlite3 AND file.path:*TCC.db*"}, "sigma_logsource": "macos/file_event"}, {"technique_id": "T1548.006", "technique_name": "TCC Database Manipulation", "tactic": "defense-evasion", "log_source_key": "edr_macos", "log_source": "EDR on macOS — TCC parent-child chain", "hypothesis": "Finder or SystemUIServer directed by an untrusted process to rename or move the com.apple.TCC directory.", "queries": {"splunk": "index=macos_edr process_name IN (\"Finder\",\"SystemUIServer\") | where NOT match(parent_process_name,\"(?i)(loginwindow|launchd)\") | table _time, host, user, parent_process_name, cmdline", "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where FileName in~ (\"Finder\",\"SystemUIServer\") | where not InitiatingProcessFileName in~ (\"loginwindow\",\"launchd\") | project TimeGenerated, DeviceName, AccountName, FileName, InitiatingProcessFileName, InitiatingProcessCommandLine", "elastic": "process.name:(Finder OR SystemUIServer) AND NOT process.parent.name:(loginwindow OR launchd)"}, "sigma_logsource": "macos/process_creation"}, {"technique_id": "T1059.002", "technique_name": "AppleScript / osascript Execution", "tactic": "execution", "log_source_key": "macos_unified_log", "log_source": "macOS Unified Log", "hypothesis": "osascript invoked with -e flag or reading from stdin — common pattern for in-memory AppleScript execution.", "queries": {"splunk": "index=macos_edr process_name=osascript | search cmdline=\"-e *\" OR cmdline=\"*curl*\" OR cmdline=\"*http*\" | table _time, host, user, cmdline, parent_process", "kql": "DeviceProcessEvents | where DeviceName has \"macOS\" or OSPlatform == \"macOS\" | where FileName == \"osascript\" | where ProcessCommandLine has_any (\"-e\",\"curl\",\"http\",\"downloadString\") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName", "elastic": "process.name:osascript AND (process.command_line:*-e* OR process.command_line:*curl* OR process.command_line:*http*)"}, "sigma_logsource": "macos/process_creation"}, {"technique_id": "T1059.002", "technique_name": "AppleScript / osascript Execution", "tactic": "execution", "log_source_key": "edr_macos", "log_source": "EDR on macOS — Process Events", "hypothesis": "Script Editor or osascript spawning curl, python, or bash — multi-stage download chain.", "queries": {"splunk": "index=macos_edr (parent_process_name=\"Script Editor\" OR parent_process_name=\"osascript\") child_process_name IN (\"curl\",\"python\",\"python3\",\"bash\",\"sh\") | table _time, host, user, parent_process_name, cmdline", "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where InitiatingProcessFileName in~ (\"osascript\",\"Script Editor\") | where FileName in~ (\"curl\",\"python\",\"python3\",\"bash\",\"sh\") | project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, ProcessCommandLine", "elastic": "process.parent.name:(osascript OR Script Editor) AND process.name:(curl OR python OR python3 OR bash OR sh)"}, "sigma_logsource": "macos/process_creation"}, {"technique_id": "T1567.002", "technique_name": "Exfiltration via Web Service (Telegram Bot API)", "tactic": "exfiltration", "log_source_key": "proxy_logs", "log_source": "Web Proxy / Network Flow Logs", "hypothesis": "Large HTTPS POST to api.telegram.org from a non-Telegram process — Telegram Bot API used as exfil channel.", "queries": {"splunk": "index=proxy dest_host=\"api.telegram.org\" cs_method=POST | where bytes_out > 50000 | stats sum(bytes_out) as total_bytes, count by src_ip, user_agent | where NOT match(user_agent,\"(?i)(TelegramDesktop|Telegram for)\")", "kql": "CommonSecurityLog | where DestinationHostName =~ \"api.telegram.org\" and RequestMethod == \"POST\" and SentBytes > 50000 | where not UserAgent has_any (\"TelegramDesktop\",\"Telegram for\") | summarize TotalBytes=sum(SentBytes), Requests=count() by SourceIP, UserAgent", "elastic": "destination.domain:api.telegram.org AND http.request.method:POST AND NOT http.request.headers.user_agent:*Telegram*"}, "sigma_logsource": "proxy"}, {"technique_id": "T1567.002", "technique_name": "Exfiltration via Web Service (Telegram Bot API)", "tactic": "exfiltration", "log_source_key": "edr_macos", "log_source": "EDR on macOS — curl to Telegram", "hypothesis": "curl or python making POST requests to api.telegram.org with sendDocument or sendMessage endpoints — data exfil via bot.", "queries": {"splunk": "index=macos_edr process_name IN (\"curl\",\"python3\",\"python\") cmdline IN (\"*api.telegram.org*\",\"*sendDocument*\",\"*sendMessage*\") | table _time, host, user, cmdline", "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where FileName in~ (\"curl\",\"python3\",\"python\") | where ProcessCommandLine has \"api.telegram.org\" | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine", "elastic": "process.name:(curl OR python3 OR python) AND process.command_line:*api.telegram.org*"}, "sigma_logsource": "macos/process_creation"}, {"technique_id": "T1543.001", "technique_name": "Launch Agent / Launch Daemon Persistence", "tactic": "persistence", "log_source_key": "macos_unified_log", "log_source": "macOS Unified Log — launchd", "hypothesis": "New .plist file written to /Library/LaunchDaemons/ or ~/Library/LaunchAgents/ pointing to a non-Apple binary.", "queries": {"splunk": "index=macos_edr event_type=file_create target_path IN (\"/Library/LaunchDaemons/*\",\"/Library/LaunchAgents/*\",\"*/Library/LaunchAgents/*\") | where NOT match(target_path,\"(?i)(apple|microsoft|google/chrome|dropbox)\") | table _time, host, user, target_path, process_name", "kql": "DeviceFileEvents | where OSPlatform == \"macOS\" | where FolderPath has_any (\"/Library/LaunchDaemons/\",\"/Library/LaunchAgents/\") | where not FolderPath has_any (\"Apple\",\"Microsoft\",\"Dropbox\",\"Google/Chrome\") | project TimeGenerated, DeviceName, AccountName, FolderPath, FileName, InitiatingProcessFileName", "elastic": "file.path:(*LaunchDaemons* OR *LaunchAgents*) AND NOT file.path:(*Apple* OR *Microsoft*) AND event.action:creation"}, "sigma_logsource": "macos/file_event"}, {"technique_id": "T1543.001", "technique_name": "Launch Agent / Launch Daemon Persistence", "tactic": "persistence", "log_source_key": "edr_macos", "log_source": "EDR on macOS — launchctl load", "hypothesis": "launchctl used to load a new daemon from an unusual path — persistence installation.", "queries": {"splunk": "index=macos_edr process_name=launchctl cmdline=\"*load*\" | where NOT match(cmdline,\"(?i)(apple|system/library|/usr/libexec)\") | table _time, host, user, cmdline, parent_process", "kql": "DeviceProcessEvents | where OSPlatform == \"macOS\" | where FileName == \"launchctl\" | where ProcessCommandLine has \"load\" | where not ProcessCommandLine has_any (\"/System/Library\",\"/usr/libexec\",\"Apple\") | project TimeGenerated, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName", "elastic": "process.name:launchctl AND process.command_line:*load* AND NOT process.command_line:*/System/Library/*"}, "sigma_logsource": "macos/process_creation"}], "sigma_rules": [{"technique_id": "T1005", "technique_name": "Unknown Technique", "status": "no_curated_rule", "rule_yaml": "", "rule": null, "fallback": {"sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1005", "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1005", "splunk_security_content": "https://research.splunk.com/detections/?q=T1005"}, "note": "No production Sigma rule authored for T1005. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."}, {"technique_id": "T1071.001", "technique_name": "C2 over Web Protocols", "status": "curated", "rule_yaml": "title: Suspicious Outbound Connection from Uncommon Process\nid: e8655cff-0ee2-5229-888e-c260ed0a17c3\nstatus: experimental\ndescription: Detects suspicious outbound connections from processes that typically\n  don't make network connections\nauthor: Threat Research MCP\ndate: '2026-04-27'\nlogsource:\n  product: windows\n  category: network_connection\ndetection:\n  selection:\n    Image|endswith:\n    - \\powershell.exe\n    - \\cmd.exe\n    - \\wscript.exe\n    - \\cscript.exe\n    - \\mshta.exe\n    - \\regsvr32.exe\n    - \\rundll32.exe\n    Initiated: 'true'\n  filter:\n    DestinationIp|startswith:\n    - '10.'\n    - 192.168.\n    - 172.16.\n    - 172.17.\n    - 172.18.\n    - 172.19.\n    - 172.20.\n    - 172.21.\n    - 172.22.\n    - 172.23.\n    - 172.24.\n    - 172.25.\n    - 172.26.\n    - 172.27.\n    - 172.28.\n    - 172.29.\n    - 172.30.\n    - 172.31.\n  condition: selection and not filter\nlevel: medium\ntags:\n- attack.command_and_control\n- attack.t1071.001\nfalsepositives:\n- Legitimate administrative scripts\n- Software update mechanisms\nreferences:\n- https://attack.mitre.org/techniques/T1071/001/\n", "rule": {"title": "Suspicious Outbound Connection from Uncommon Process", "id": "e8655cff-0ee2-5229-888e-c260ed0a17c3", "status": "experimental", "description": "Detects suspicious outbound connections from processes that typically don't make network connections", "author": "Threat Research MCP", "date": "2026-04-27", "logsource": {"product": "windows", "category": "network_connection"}, "detection": {"selection": {"Image|endswith": ["\\powershell.exe", "\\cmd.exe", "\\wscript.exe", "\\cscript.exe", "\\mshta.exe", "\\regsvr32.exe", "\\rundll32.exe"], "Initiated": "true"}, "filter": {"DestinationIp|startswith": ["10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31."]}, "condition": "selection and not filter"}, "level": "medium", "tags": ["attack.command_and_control", "attack.t1071.001"], "falsepositives": ["Legitimate administrative scripts", "Software update mechanisms"], "references": ["https://attack.mitre.org/techniques/T1071/001/"]}}, {"technique_id": "T1555.001", "technique_name": "Unknown Technique", "status": "no_curated_rule", "rule_yaml": "", "rule": null, "fallback": {"sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1555.001", "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1555.001", "splunk_security_content": "https://research.splunk.com/detections/?q=T1555.001"}, "note": "No production Sigma rule authored for T1555.001. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."}, {"technique_id": "T1548.006", "technique_name": "Unknown Technique", "status": "no_curated_rule", "rule_yaml": "", "rule": null, "fallback": {"sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1548.006", "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1548.006", "splunk_security_content": "https://research.splunk.com/detections/?q=T1548.006"}, "note": "No production Sigma rule authored for T1548.006. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."}, {"technique_id": "T1059.002", "technique_name": "Unknown Technique", "status": "no_curated_rule", "rule_yaml": "", "rule": null, "fallback": {"sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1059.002", "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1059.002", "splunk_security_content": "https://research.splunk.com/detections/?q=T1059.002"}, "note": "No production Sigma rule authored for T1059.002. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."}, {"technique_id": "T1567.002", "technique_name": "Exfiltration to Cloud Storage", "status": "no_curated_rule", "rule_yaml": "", "rule": null, "fallback": {"sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1567.002", "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1567.002", "splunk_security_content": "https://research.splunk.com/detections/?q=T1567.002"}, "note": "No production Sigma rule authored for T1567.002. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."}, {"technique_id": "T1543.001", "technique_name": "Unknown Technique", "status": "no_curated_rule", "rule_yaml": "", "rule": null, "fallback": {"sigmahq_search": "https://github.com/SigmaHQ/sigma/search?q=T1543.001", "elastic_rules": "https://github.com/elastic/detection-rules/search?q=T1543.001", "splunk_security_content": "https://research.splunk.com/detections/?q=T1543.001"}, "note": "No production Sigma rule authored for T1543.001. Use the fallback links to find community rules, or call generate_sigma() with a specific behavior description."}], "graph": {"nodes": [{"id": "ioc::185.220.101.47", "group": "ioc", "type": "ips", "label": "185.220.101.47", "full": "185.220.101.47", "color": "#e74c3c", "confidence": 1.0, "layer": 0}, {"id": "ioc::195.133.88.12", "group": "ioc", "type": "ips", "label": "195.133.88.12", "full": "195.133.88.12", "color": "#e74c3c", "confidence": 1.0, "layer": 0}, {"id": "ioc::cdn.apple", "group": "ioc", "type": "domains", "label": "cdn.apple", "full": "cdn.apple", "color": "#e74c3c", "confidence": 1.0, "layer": 0}, {"id": "ioc::TCC.db", "group": "ioc", "type": "domains", "label": "TCC.db", "full": "TCC.db", "color": "#e74c3c", "confidence": 1.0, "layer": 0}, {"id": "ioc::api.telegram.org", "group": "ioc", "type": "domains", "label": "api.telegram.org", "full": "api.telegram.org", "color": "#e74c3c", "confidence": 0.98, "layer": 0}, {"id": "ioc::a3f8c2d19e1b4f72deadbeefcafebabedeadbeefcafebabedeadbeefcafebabe", "group": "ioc", "type": "hashes", "label": "a3f8c2d19e1b4f72deadbeefcafe…", "full": "a3f8c2d19e1b4f72deadbeefcafebabedeadbeefcafebabedeadbeefcafebabe", "color": "#3498db", "confidence": 1.0, "layer": 0}, {"id": "T1005", "group": "technique", "tactic": "collection", "label": "T1005", "name": "Data from Local System", "color": "#2ecc71", "confidence": 0.497, "evidence": ["cryptocurrency wallet", "ledger live", "exodus wallet", "wallet seed"], "layer": 1}, {"id": "tactic::collection", "group": "tactic", "label": "Collection", "color": "#2ecc71", "layer": 2}, {"id": "T1071.001", "group": "technique", "tactic": "command-and-control", "label": "T1071.001", "name": "Web Protocols", "color": "#e74c3c", "confidence": 0.519, "evidence": ["beacon", "cobalt strike"], "layer": 1}, {"id": "tactic::command-and-control", "group": "tactic", "label": "Command And Control", "color": "#e74c3c", "layer": 2}, {"id": "T1555.001", "group": "technique", "tactic": "credential-access", "label": "T1555.001", "name": "Keychain", "color": "#2980b9", "confidence": 0.473, "evidence": ["keychain", "security find-generic-password", "security find-internet-password"], "layer": 1}, {"id": "tactic::credential-access", "group": "tactic", "label": "Credential Access", "color": "#2980b9", "layer": 2}, {"id": "T1548.006", "group": "technique", "tactic": "defense-evasion", "label": "T1548.006", "name": "TCC Manipulation", "color": "#9b59b6", "confidence": 0.58, "evidence": ["tcc database", "tcc.db"], "layer": 1}, {"id": "tactic::defense-evasion", "group": "tactic", "label": "Defense Evasion", "color": "#9b59b6", "layer": 2}, {"id": "T1059.002", "group": "technique", "tactic": "execution", "label": "T1059.002", "name": "AppleScript", "color": "#e67e22", "confidence": 0.501, "evidence": ["osascript", "applescript"], "layer": 1}, {"id": "tactic::execution", "group": "tactic", "label": "Execution", "color": "#e67e22", "layer": 2}, {"id": "T1567.002", "group": "technique", "tactic": "exfiltration", "label": "T1567.002", "name": "Exfiltration to Web Service", "color": "#8e44ad", "confidence": 0.537, "evidence": ["telegram bot api", "telegram bot", "bot api", "discord webhook"], "layer": 1}, {"id": "tactic::exfiltration", "group": "tactic", "label": "Exfiltration", "color": "#8e44ad", "layer": 2}, {"id": "T1543.001", "group": "technique", "tactic": "persistence", "label": "T1543.001", "name": "Launch Agent", "color": "#f1c40f", "confidence": 0.501, "evidence": ["launch agent", "launchctl"], "layer": 1}, {"id": "tactic::persistence", "group": "tactic", "label": "Persistence", "color": "#f1c40f", "layer": 2}], "links": [{"source": "T1005", "target": "tactic::collection", "type": "technique_tactic", "strength": 1.0}, {"source": "T1071.001", "target": "tactic::command-and-control", "type": "technique_tactic", "strength": 1.0}, {"source": "T1555.001", "target": "tactic::credential-access", "type": "technique_tactic", "strength": 1.0}, {"source": "ioc::TCC.db", "target": "T1548.006", "type": "ioc_technique", "strength": 0.58}, {"source": "T1548.006", "target": "tactic::defense-evasion", "type": "technique_tactic", "strength": 1.0}, {"source": "T1059.002", "target": "tactic::execution", "type": "technique_tactic", "strength": 1.0}, {"source": "T1567.002", "target": "tactic::exfiltration", "type": "technique_tactic", "strength": 1.0}, {"source": "T1543.001", "target": "tactic::persistence", "type": "technique_tactic", "strength": 1.0}]}, "tactic_colors": {"initial-access": "#c0392b", "execution": "#e67e22", "persistence": "#f1c40f", "privilege-escalation": "#e74c3c", "defense-evasion": "#9b59b6", "credential-access": "#2980b9", "discovery": "#1abc9c", "lateral-movement": "#27ae60", "collection": "#2ecc71", "command-and-control": "#e74c3c", "exfiltration": "#8e44ad", "impact": "#c0392b"}, "tactic_order": ["initial-access", "execution", "persistence", "privilege-escalation", "defense-evasion", "credential-access", "discovery", "lateral-movement", "collection", "command-and-control", "exfiltration", "impact"]};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+const $= id=>document.getElementById(id);
+const el=(tag,cls,html)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e;};
+const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const confColor=c=>c>=.8?'#3fb950':c>=.5?'#d29922':c>=.3?'#e67e22':'#f85149';
+const pct=c=>Math.round((c||0)*100);
+
+// ── header ───────────────────────────────────────────────────────────────────
+$('rpt-title').textContent=D.title;
+$('rpt-ts').textContent=new Date(D.timestamp).toLocaleString();
+$('rpt-thr').textContent=D.summary.confidence_threshold.toFixed(2);
+$('stage-badges').innerHTML=(D.summary.stages||[]).map(s=>`<span class="stage-badge">${esc(s.replace(/_/g,' '))}</span>`).join('');
+
+// ── stat strip ───────────────────────────────────────────────────────────────
+[
+  [D.summary.ioc_count,'IOCs Extracted','#e74c3c'],
+  [D.summary.technique_count,'Techniques','#f39c12'],
+  [D.summary.suppressed_count,'Suppressed','#8b949e'],
+  [D.summary.hypothesis_count,'Hunt Hypotheses','#3fb950'],
+  [D.summary.sigma_rule_count,'Sigma Rules','#58a6ff'],
+  [(D.summary.text_chars/1000).toFixed(1)+'k','Chars Analyzed','#8b949e'],
+].forEach(([num,label,color])=>{
+  const b=el('div','stat-box');
+  b.innerHTML=`<div class="stat-num" style="color:${color}">${num}</div><div class="stat-lbl">${label}</div>`;
+  $('stat-strip').appendChild(b);
+});
+
+// ── IOC table ────────────────────────────────────────────────────────────────
+if(!D.ioc_rows.length){$('ioc-empty').style.display='block';$('ioc-tbl').style.display='none';}
+else D.ioc_rows.forEach(r=>{
+  const p=r.confidence;const fc=p>=80?'#3fb950':p>=50?'#d29922':'#f85149';
+  const tr=el('tr');
+  tr.innerHTML=`<td><span class="type-pill">${r.type}</span></td>
+    <td class="mono">${esc(r.value)}</td>
+    <td><span class="lbl-pill lbl-${r.label}">${r.label}</span></td>
+    <td><div class="conf-wrap"><div class="conf-track"><div class="conf-fill" style="width:${p}%;background:${fc}"></div></div><span class="conf-pct">${p}%</span></div></td>`;
+  $('ioc-body').appendChild(tr);
+});
+
+// ── heatmap ──────────────────────────────────────────────────────────────────
+const byTactic={};
+D.techniques.forEach(t=>{if(!byTactic[t.tactic])byTactic[t.tactic]=[];byTactic[t.tactic].push(t);});
+
+const hm=$('heatmap');
+let activeTactic=null;
+D.tactic_order.forEach(tac=>{
+  const hits=byTactic[tac]||[];
+  const col=el('div','hm-col');
+  const color=D.tactic_colors[tac]||'#555';
+  const head=el('div','hm-head',tac.replace(/-/g,' '));
+  head.style.background=color;
+  col.appendChild(head);
+  const body=el('div','hm-body');
+  body.dataset.tactic=tac;
+  body.title=`Filter graph to ${tac}`;
+  body.onclick=()=>filterGraphByTactic(tac,body);
+  if(!hits.length)body.appendChild(el('div','hm-empty','—'));
+  else hits.forEach(t=>{
+    const c=el('div','hm-cell');
+    c.style.background=color+'2a';c.style.color=color;
+    c.textContent=t.id;c.title=t.name;
+    body.appendChild(c);
+  });
+  col.appendChild(body);hm.appendChild(col);
+});
+
+// ── technique cards ───────────────────────────────────────────────────────────
+let selectedTid=null;
+function renderTechCard(t,container,dim=false){
+  const color=D.tactic_colors[t.tactic]||'#f39c12';
+  const c=t.confidence||0;
+  const fc=confColor(c);
+  const card=el('div','tech-card');
+  card.style.borderLeftColor=color;
+  if(dim)card.style.opacity='.45';
+  card.innerHTML=`
+    <div class="tech-top">
+      <span class="tech-tid" style="color:${color}">${t.id}</span>
+      <span class="tech-nm">${esc(t.name)}</span>
+      <div class="conf-mini">
+        <div class="conf-track2"><div class="conf-fill2" style="width:${pct(c)}%;background:${fc}"></div></div>
+        <span class="conf-lbl" style="color:${fc}">${t.confidence_label||'?'} ${pct(c)}%</span>
+      </div>
+      <a href="https://attack.mitre.org/techniques/${t.id.replace('.','//')}/" target="_blank" style="font-size:.72rem;color:var(--muted)" onclick="event.stopPropagation()">ATT&CK ↗</a>
+    </div>
+    <div class="ev-chips">${(t.evidence||[]).map(e=>`<span class="ev-chip">${esc(e)}</span>`).join('')}</div>`;
+  card.addEventListener('click',()=>{
+    document.querySelectorAll('.tech-card').forEach(x=>x.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedTid=t.id;
+    highlightNode(t.id);
+    showHypotheses([t.id]);
+  });
+  container.appendChild(card);
+}
+
+const tcw=$('tech-cards-wrap');
+if(!D.techniques.length)tcw.innerHTML='<div class="no-data">No techniques detected above confidence threshold.</div>';
+else D.techniques.forEach(t=>renderTechCard(t,tcw));
+
+if(D.suppressed.length){
+  $('supp-wrap').style.display='block';
+  const sc=$('supp-cards');
+  D.suppressed.forEach(t=>renderTechCard(t,sc,true));
+}
+
+// ── hypothesis panel ──────────────────────────────────────────────────────────
+const hypsWrap=$('hyp-cards-wrap');
+const allHyps=D.hypotheses;
+
+function showHypotheses(tids){
+  hypsWrap.innerHTML='';
+  const label=tids.length===1?tids[0]:`[${tids.join(', ')}]`;
+  $('hyp-tech-label').textContent=`— ${label}`;
+  const matches=tids.length?allHyps.filter(h=>tids.includes(h.technique_id)):allHyps;
+  if(!matches.length){$('hyp-empty').style.display='block';return;}
+  $('hyp-empty').style.display='none';
+  matches.forEach((h,i)=>{
+    const color=D.tactic_colors[h.tactic]||'#555';
+    const uid='hq'+i;
+    const card=el('div','hyp-card');
+    card.innerHTML=`
+      <div class="hyp-header">
+        <span style="font-family:monospace;font-weight:700">${h.technique_id}</span>
+        <span class="tac-badge" style="background:${color}">${h.tactic}</span>
+        <span class="src-badge">&#128268; ${esc(h.log_source)}</span>
+      </div>
+      <div class="hyp-text">&#128270; ${esc(h.hypothesis)}</div>
+      <div class="q-tabs">
+        <button class="q-tab on" onclick="swTab('${uid}','splunk',this)">Splunk SPL</button>
+        <button class="q-tab" onclick="swTab('${uid}','kql',this)">Sentinel KQL</button>
+        <button class="q-tab" onclick="swTab('${uid}','elastic',this)">Elastic EQL</button>
+      </div>
+      <pre class="q-block" id="${uid}-splunk">${esc(h.queries?.splunk||'—')}</pre>
+      <pre class="q-block hide" id="${uid}-kql">${esc(h.queries?.kql||'—')}</pre>
+      <pre class="q-block hide" id="${uid}-elastic">${esc(h.queries?.elastic||'—')}</pre>`;
+    hypsWrap.appendChild(card);
+  });
+}
+
+// Show all hypotheses by default
+if(allHyps.length){showHypotheses([]);$('hyp-tech-label').textContent='';}
+else $('hyp-empty').style.display='block';
+
+window.swTab=function(uid,tab,btn){
+  ['splunk','kql','elastic'].forEach(t=>{
+    const e=document.getElementById(uid+'-'+t);if(e)e.classList.toggle('hide',t!==tab);
+  });
+  btn.closest('.hyp-card').querySelectorAll('.q-tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+};
+
+// ── sigma cards ───────────────────────────────────────────────────────────────
+const sw=$('sigma-wrap');
+if(!D.sigma_rules.length)$('sigma-empty').style.display='block';
+else D.sigma_rules.forEach((r,i)=>{
+  const uid='sy'+i;
+  const curated=r.status==='curated';
+  const card=el('div','sigma-card');
+  const fb=r.fallback||{};
+  card.innerHTML=`
+    <div class="sigma-header">
+      <span class="sigma-tid">${esc(r.technique_id||'')}</span>
+      <span class="sigma-name">${esc(r.technique_name||r.rule?.title||'')}</span>
+      ${curated
+        ?'<span class="sigma-status-curated">&#10003; curated</span>'
+        :'<span class="sigma-status-stub">&#9888; no curated rule</span>'}
+      ${curated?`<button class="btn-toggle" onclick="toggleYaml('${uid}')">&#128196; YAML</button>`:''}
+      ${r.technique_id?`<a href="https://attack.mitre.org/techniques/${r.technique_id.replace('.','//')}/" target="_blank" style="font-size:.73rem;color:var(--muted)">ATT&CK ↗</a>`:''}
+    </div>
+    ${!curated?`<div class="sigma-links">Search community rules:
+      ${fb.sigmahq_search?`<a href="${fb.sigmahq_search}" target="_blank">SigmaHQ ↗</a>`:''}
+      ${fb.elastic_rules?`<a href="${fb.elastic_rules}" target="_blank">Elastic Detection Rules ↗</a>`:''}
+      ${fb.splunk_security_content?`<a href="${fb.splunk_security_content}" target="_blank">Splunk Security Content ↗</a>`:''}
+    </div>`:''}
+    ${curated?`<pre class="sigma-yaml-block" id="${uid}">${esc(r.rule_yaml||'')}</pre>`:''}`;
+  sw.appendChild(card);
+});
+window.toggleYaml=function(uid){const e=document.getElementById(uid);if(e)e.style.display=e.style.display&&e.style.display!=='none'?'none':'block';};
+
+// ── D3 Force Graph ────────────────────────────────────────────────────────────
+(function(){
+  const svgEl=$('graph-svg');
+  const W=svgEl.clientWidth||1100,H=520;
+  svgEl.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+  const nodes=D.graph.nodes.map(n=>Object.assign({},n));
+  const links=D.graph.links.map(l=>Object.assign({},l));
+
+  if(!nodes.length){
+    d3.select(svgEl).append('text').attr('x',W/2).attr('y',H/2)
+      .attr('text-anchor','middle').attr('fill','#8b949e').attr('font-size','13')
+      .text('No IOC-technique connections to visualise.');
+    return;
+  }
+
+  // Group x anchors: IOC left, technique centre, tactic right
+  const layerX={0:W*.18, 1:W*.52, 2:W*.86};
+  nodes.forEach(n=>{n._fx0=layerX[n.layer||0];});
+
+  const svg=d3.select(svgEl);
+  const g=svg.append('g');
+  let showLabels=true;
+
+  // zoom
+  const zoom=d3.zoom().scaleExtent([.2,6]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(zoom);
+  $('btn-reset').addEventListener('click',()=>svg.transition().duration(600).call(zoom.transform,d3.zoomIdentity));
+
+  // labels toggle
+  $('btn-labels').addEventListener('click',function(){
+    showLabels=!showLabels;
+    this.textContent=showLabels?'Labels On':'Labels Off';
+    this.classList.toggle('active',!showLabels);
+    g.selectAll('.node-label').style('display',showLabels?null:'none');
+  });
+
+  const nodeRadius=n=>n.group==='tactic'?20:n.group==='technique'?13:8;
+  const nodeColor=n=>n.color||'#8b949e';
+
+  // arrowhead markers per colour
+  const defs=svg.append('defs');
+  ['#30363d','#58a6ff','#3fb950','#d29922','#f85149'].forEach(col=>{
+    const id='arr'+col.replace('#','');
+    defs.append('marker').attr('id',id).attr('viewBox','0 -4 8 8').attr('refX',8).attr('refY',0)
+      .attr('markerWidth',6).attr('markerHeight',6).attr('orient','auto')
+      .append('path').attr('d','M0,-4L8,0L0,4').attr('fill',col);
+  });
+
+  const linkColor=l=>l.strength>0.6?'#58a6ff':l.strength>0.3?'#30363d':'#21262d';
+
+  // simulation
+  const sim=d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(links).id(d=>d.id).distance(d=>d.type==='technique_tactic'?90:110).strength(d=>d.type==='technique_tactic'?.9:.4))
+    .force('charge',d3.forceManyBody().strength(d=>d.group==='tactic'?-250:d.group==='technique'?-150:-80))
+    .force('x',d3.forceX(n=>layerX[n.layer||0]).strength(.45))
+    .force('y',d3.forceY(H/2).strength(.08))
+    .force('collision',d3.forceCollide(n=>nodeRadius(n)+6));
+
+  // links
+  const link=g.append('g').selectAll('line').data(links).join('line')
+    .attr('stroke',l=>linkColor(l))
+    .attr('stroke-width',l=>l.type==='technique_tactic'?1.5:.8)
+    .attr('stroke-opacity',l=>l.strength>0.5?.7:.35)
+    .attr('stroke-dasharray',l=>l.strength<.3?'4,3':null)
+    .attr('marker-end',l=>{const c=linkColor(l);return `url(#arr${c.replace('#','')})`;});
+
+  // nodes
+  const node=g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('class','node-g')
+    .call(d3.drag()
+      .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag', (e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',  (e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;})
+    );
+
+  node.append('circle')
+    .attr('r',d=>nodeRadius(d))
+    .attr('fill',d=>nodeColor(d))
+    .attr('fill-opacity',d=>d.group==='tactic'?.75:.88)
+    .attr('stroke',d=>d.group==='tactic'?'#fff':'#00000040')
+    .attr('stroke-width',d=>d.group==='tactic'?1.5:.5);
+
+  // confidence ring for technique nodes
+  node.filter(d=>d.group==='technique').append('circle')
+    .attr('r',d=>nodeRadius(d)+3)
+    .attr('fill','none')
+    .attr('stroke',d=>confColor(d.confidence||0))
+    .attr('stroke-width',2)
+    .attr('stroke-opacity',.6)
+    .attr('stroke-dasharray',d=>{
+      const circ=2*Math.PI*(nodeRadius(d)+3);
+      const arc=circ*(d.confidence||0);
+      return `${arc.toFixed(1)} ${(circ-arc).toFixed(1)}`;
+    })
+    .attr('transform','rotate(-90)');
+
+  // labels
+  node.append('text').attr('class','node-label')
+    .attr('dy',d=>d.group==='ioc'?-12:'.35em')
+    .attr('text-anchor','middle')
+    .attr('font-size',d=>d.group==='tactic'?10:9)
+    .attr('fill',d=>d.group==='tactic'?'#fff':'#8b949e')
+    .text(d=>d.label||d.id);
+
+  // hover tooltip
+  const tt=document.getElementById('tooltip');
+  node.on('mousemove',(e,d)=>{
+    tt.style.display='block';tt.style.left=(e.clientX+14)+'px';tt.style.top=(e.clientY-10)+'px';
+    $('tt-id').textContent=d.id;
+    $('tt-name').textContent=d.name||d.label||'';
+    $('tt-conf').textContent=d.confidence!=null?`Confidence: ${pct(d.confidence)}% · ${d.group}`:`Group: ${d.group}`;
+    $('tt-ev').innerHTML=(d.evidence||[]).map(e=>`<span class="tt-chip">${esc(e)}</span>`).join('');
+  }).on('mouseleave',()=>tt.style.display='none');
+
+  // click technique node
+  node.on('click',(e,d)=>{
+    e.stopPropagation();
+    if(d.group==='technique'){
+      highlightNode(d.id);
+      document.querySelectorAll('.tech-card').forEach(c=>c.classList.remove('selected'));
+      const card=[...document.querySelectorAll('.tech-card')].find(c=>c.querySelector('.tech-tid')?.textContent===d.id);
+      if(card){card.classList.add('selected');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+      showHypotheses([d.id]);
+    }
+  });
+  svg.on('click',()=>{resetHighlight();showHypotheses([]);$('hyp-tech-label').textContent='';});
+
+  // highlight helpers
+  function highlightNode(tid){
+    const connected=new Set([tid]);
+    links.forEach(l=>{if((l.source.id||l.source)===tid||(l.target.id||l.target)===tid){connected.add(l.source.id||l.source);connected.add(l.target.id||l.target);}} );
+    node.attr('opacity',d=>connected.has(d.id)?1:.15);
+    link.attr('opacity',l=>{const s=l.source.id||l.source,t=l.target.id||l.target;return connected.has(s)&&connected.has(t)?1:.05;});
+  }
+  function resetHighlight(){node.attr('opacity',1);link.attr('opacity',1);}
+  window.highlightNode=highlightNode;
+
+  sim.on('tick',()=>{
+    link.attr('x1',l=>l.source.x).attr('y1',l=>l.source.y)
+        .attr('x2',l=>{const dx=l.target.x-l.source.x,dy=l.target.y-l.source.y,d=Math.sqrt(dx*dx+dy*dy)||1,r=nodeRadius(l.target)+4;return l.target.x-dx/d*r;})
+        .attr('y2',l=>{const dx=l.target.x-l.source.x,dy=l.target.y-l.source.y,d=Math.sqrt(dx*dx+dy*dy)||1,r=nodeRadius(l.target)+4;return l.target.y-dy/d*r;});
+    node.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+
+  // tactic filter buttons
+  const filters=$('tactic-filters');
+  const activeTactics=new Set(nodes.filter(n=>n.group==='tactic').map(n=>n.tactic||n.id.replace('tactic::','')));
+  activeTactics.forEach(tac=>{
+    const color=D.tactic_colors[tac]||'#555';
+    const btn=el('button','tactic-filter-btn on',tac.replace(/-/g,'&#8209;'));
+    btn.style.color=color;btn.dataset.tac=tac;
+    btn.onclick=()=>toggleTacticFilter(tac,btn);
+    filters.appendChild(btn);
+  });
+
+  const hiddenTactics=new Set();
+  function toggleTacticFilter(tac,btn){
+    if(hiddenTactics.has(tac)){hiddenTactics.delete(tac);btn.classList.add('on');}
+    else{hiddenTactics.add(tac);btn.classList.remove('on');}
+    const visNodes=new Set();
+    nodes.forEach(n=>{
+      const t=n.tactic||(n.id.startsWith('tactic::')?n.id.replace('tactic::',''):null);
+      const hide=t&&hiddenTactics.has(t);
+      g.selectAll('.node-g').filter(d=>d.id===n.id).attr('opacity',hide?.05:1);
+    });
+  }
+
+  function filterGraphByTactic(tac,body){
+    if(body.dataset.active==='1'){body.dataset.active='';node.attr('opacity',1);link.attr('opacity',1);}
+    else{
+      document.querySelectorAll('.hm-body').forEach(b=>b.dataset.active='');
+      body.dataset.active='1';
+      const tacId='tactic::'+tac;
+      const rel=new Set([tacId]);
+      links.forEach(l=>{if((l.target.id||l.target)===tacId)rel.add(l.source.id||l.source);});
+      links.forEach(l=>{if(rel.has(l.target.id||l.target)||rel.has(l.source.id||l.source)){rel.add(l.source.id||l.source);rel.add(l.target.id||l.target);}});
+      node.attr('opacity',d=>rel.has(d.id)?1:.07);
+      link.attr('opacity',l=>{const s=l.source.id||l.source,t=l.target.id||l.target;return rel.has(s)&&rel.has(t)?.8:.03;});
+    }
+  }
+  window.filterGraphByTactic=filterGraphByTactic;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+# Threat Research MCP — Operator Profile
+# Copy this file to operator.yaml and edit for your environment.
+# The pipeline reads this on every run to filter output to what you can actually use.
+#
+# Quick start: set your primary SIEM and available log sources.
+# Everything else has sensible defaults.
+
+# ── Organisation ──────────────────────────────────────────────────────────────
+org: "ACME Corp SOC"
+team_size: 5              # used to calibrate output verbosity
+attack_version: "14.1"   # pin to ATT&CK version (see https://attack.mitre.org/)
+
+# ── SIEM ─────────────────────────────────────────────────────────────────────
+siem:
+  primary:   sentinel     # sentinel | splunk | elastic | qradar
+  secondary: splunk       # optional fallback; omit if single-SIEM shop
+  # Generates queries in primary first, secondary second, omits the rest
+
+# ── Log sources actually available ───────────────────────────────────────────
+# Only generate hunt hypotheses and Sigma rules for these sources.
+# Remove any line you do NOT have — this prevents useless output.
+log_sources:
+  # Windows / Sysmon
+  - sysmon_process          # Sysmon Event ID 1 — process creation
+  - sysmon_network          # Sysmon Event ID 3 — network connections
+  - sysmon_file             # Sysmon Event ID 11 — file creation
+  - sysmon_registry         # Sysmon Event ID 13 — registry events
+  - sysmon_create_remote_thread  # Sysmon Event ID 8
+
+  # Windows native event logs
+  - windows_event_4624      # Successful logon
+  - windows_event_4625      # Failed logon
+  - windows_event_4698      # Scheduled task created
+  - windows_event_4769      # Kerberos service ticket request
+  - windows_event_7045      # New service installed
+  - script_block_logging    # PowerShell script block logging (Event ID 4104)
+
+  # Network
+  - proxy_logs              # Web proxy / Zscaler / Palo Alto URL filtering
+  - dns_logs                # DNS query logs (Infoblox, Windows DNS, etc.)
+  - firewall_logs           # Firewall / network flow logs
+
+  # Email
+  - email_gateway           # Exchange Online, Proofpoint, Mimecast
+
+  # macOS  — comment out if no macOS endpoints
+  - edr_macos               # EDR on macOS (Defender, CrowdStrike, SentinelOne)
+  - macos_unified_log       # macOS Unified Log (log show / log stream)
+
+  # Web infrastructure
+  - web_server_logs         # IIS / Apache / Nginx / WAF
+
+  # Cloud — AWS
+  - aws_cloudtrail          # AWS CloudTrail
+
+  # Cloud — Azure
+  - azure_activity_logs     # Azure Monitor / Activity Logs
+
+  # Cloud — GCP  — comment out if not using GCP
+  # - gcp_cloud_logging
+
+  # CI/CD / SCM
+  - github_audit            # GitHub Actions / Audit Log
+
+  # Container / Kubernetes — comment out if not using containers
+  # - k8s_audit
+  # - docker_daemon
+
+# ── Environment ───────────────────────────────────────────────────────────────
+environment:
+  os:         [windows, macos]   # windows | macos | linux — drives logsource selection
+  cloud:      [azure]            # azure | aws | gcp — which cloud rules to include
+  containers: false              # true → include K8s/Docker rules
+  on_prem:    true
+
+# ── Detection confidence threshold ────────────────────────────────────────────
+# Techniques mapped below this score are suppressed from output.
+# Lower = more noise, more coverage. 0.45 is a good starting point.
+confidence_threshold: 0.45
+
+# ── Detection lifecycle ───────────────────────────────────────────────────────
+detection:
+  tier1_review_required: false  # true = even IOC blocklists need sign-off before deploy
+  tier2_review_required: true   # behavioral rules always need peer review
+  sigma_output_dir: "./detections/sigma"   # where to write validated Sigma files
+  # Lifecycle states used in rule metadata
+  lifecycle_states: [draft, review, staging, production, deprecated]
+
+# ── Campaign tracking ─────────────────────────────────────────────────────────
+campaigns:
+  store_dir: "./.campaigns"     # where campaign JSON files are stored
+  # For team environments, point this at a shared git repo:
+  # store_dir: "/mnt/soc-shared/threat-intel/campaigns"
+
+# ── Intelligence source quality ───────────────────────────────────────────────
+# Used to adjust technique confidence scores based on source reliability.
+# Values: cisa_advisory | ncsc_advisory | isac_advisory | vendor_blog |
+#         researcher_blog | open_source_report | pastebin_forum | unknown
+default_source_quality: vendor_blog
+
+# ── Integrations ─────────────────────────────────────────────────────────────
+integrations:
+  misp:
+    enabled: false
+    url: "https://misp.yourorg.internal"
+    # key: set MISP_API_KEY env var
+
+  # THORCollective/threat-hunting-mcp-server — community hunt hypothesis library
+  thor_hunting_mcp:
+    enabled: false
+    # When enabled, pipeline queries HEARTH for community-curated hunt hypotheses
+    # and merges them with internally generated ones.
+
+  # MHaggis/mitre-attack-mcp — rich ATT&CK technique data
+  mitre_attack_mcp:
+    enabled: true
+    # Used to fetch technique data sources, procedure examples, actor usage.
+    # No config required — Claude calls this MCP directly in the session.
+
+  # MHaggis/Security-Detections-MCP — 8,200+ existing Sigma/detection rules
+  security_detections_mcp:
+    enabled: true
+    # Pipeline checks existing coverage before generating new rules.
+    # No config required — Claude calls this MCP directly in the session.

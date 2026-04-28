@@ -1,0 +1,67 @@
+Sapphire Sleet macOS Campaign — Threat Intelligence Summary
+Source: Internal IR + OSINT Correlation | Confidence: HIGH
+
+THREAT ACTOR
+Sapphire Sleet (DPRK-nexus, tracked by Microsoft): financially motivated, targets
+cryptocurrency exchanges and Web3 companies via fake recruiter lures on LinkedIn.
+Also known as BlueNoroff, TA444.
+
+INITIAL ACCESS
+Victims receive LinkedIn connection requests from fake recruiters. After establishing
+rapport, the attacker sends a malicious Zoom installer disguised as a skills assessment.
+The lure uses domain zoomus-sdk[.]com (resolving to 185.220.101.47) to host the payload.
+A secondary domain cdn.apple-cdn[.]org (195.133.88.12) serves the second-stage dropper.
+
+EXECUTION
+Upon opening the fake installer, osascript is invoked via AppleScript to execute an
+in-memory payload without touching disk. Script Editor spawns curl to retrieve the
+second-stage from the C2. The attacker uses reflective code loading to avoid filesystem
+artifacts. SHA-256 of observed dropper: a3f8c2d19e1b4f72deadbeefcafebabedeadbeefcafebabedeadbeefcafebabe
+
+PERSISTENCE
+A Launch Agent plist (com.apple.webkit.service.plist) is written to
+~/Library/LaunchAgents/ to establish persistence. The launchctl load command
+activates the agent on next login. A backup persistence mechanism via loginitem
+was also observed.
+
+PRIVILEGE ESCALATION / DEFENSE EVASION
+The attacker manipulates the TCC database (TCC.db) using sqlite3 to grant Full Disk
+Access to the backdoor without user prompt, bypassing macOS privacy controls entirely.
+Gatekeeper bypass observed via removal of the com.apple.quarantine extended attribute.
+
+CREDENTIAL ACCESS
+The backdoor reads the macOS Keychain using security find-generic-password and
+security find-internet-password to harvest browser-stored credentials, cryptocurrency
+wallet seeds, and exchange API keys. Session cookie theft from Chromium-based browsers
+targeting exchange session tokens.
+
+COLLECTION
+User home directory archived with zip (targeting Documents, Downloads, .ssh, and
+~/Library/Application Support/). Exodus wallet and Ledger Live local data exfiltrated.
+Cryptocurrency wallet seed phrases harvested directly.
+
+COMMAND & CONTROL
+Cobalt Strike beacon over HTTPS to 185.220.101.47 (port 443). Beacon interval: 45 seconds.
+DNS query patterns show periodic lookups to cdn.apple-cdn[.]org every 60 seconds.
+Telegram Bot API (api.telegram.org) used for file exfiltration (sendDocument).
+Bot token observed in process arguments: bot7391048265:AAH8c2d1.
+
+EXFILTRATION
+2.3 MB archive uploaded to Telegram Bot API (sendDocument endpoint) over HTTPS.
+Additional exfiltration via Discord webhook observed in one victim environment.
+
+INDICATORS OF COMPROMISE
+IPs:     185.220.101.47   195.133.88.12
+Domains: zoomus-sdk[.]com   cdn.apple-cdn[.]org
+Hash:    a3f8c2d19e1b4f72deadbeefcafebabedeadbeefcafebabedeadbeefcafebabe (SHA-256)
+Email:   hr-recruiter@careers-talent[.]io
+
+MITRE ATT&CK (assessed):
+T1059.002 - AppleScript / osascript execution
+T1543.001 - Launch Agent persistence
+T1548.006 - TCC database manipulation
+T1555.001 - Keychain credential access
+T1539     - Steal web session cookie
+T1005     - Data from local system (wallet seeds)
+T1567.002 - Exfiltration via Telegram Bot API
+T1204.002 - User execution: malicious Zoom installer

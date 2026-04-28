@@ -42,13 +42,11 @@ class TestSigmaGenerator:
         assert rule.level == "critical"
         assert any("t1003.001" in tag.lower() for tag in rule.tags)
 
-    def test_generate_generic_rule(self):
-        """Test generating generic rule."""
+    def test_generate_unknown_technique_returns_none(self):
+        """Unknown techniques return None — no garbage generic rules."""
         generator = SigmaGenerator()
         rule = generator.generate_from_technique("T9999.999", "Unknown Technique")
-
-        assert rule.title is not None
-        assert rule.status == "experimental"
+        assert rule is None, "Generator must return None for unmapped techniques, not a stub rule"
 
     def test_to_yaml(self):
         """Test converting rule to YAML."""

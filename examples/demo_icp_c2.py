@@ -23,14 +23,14 @@ def main() -> None:
     # Your threat intel
     intel = """
     ICP Canister ID: tdtqy-oyaaa-aaaae-af2dq-cai
-    
-    Decentralized C2 using Internet Computer Protocol for censorship-resistant 
-    command and control. Threat actor leveraging Web3/blockchain infrastructure 
-    to host malware C2. Avoids domain takedowns by using Canister ID instead of 
+
+    Decentralized C2 using Internet Computer Protocol for censorship-resistant
+    command and control. Threat actor leveraging Web3/blockchain infrastructure
+    to host malware C2. Avoids domain takedowns by using Canister ID instead of
     traditional domains. Persistence through decentralized infrastructure.
-    
+
     Detection requires blocking traffic to specific Canister ID or underlying ICP nodes.
-    
+
     TTPs:
     - Censorship-resistant C2 via blockchain
     - Encrypted communication channels

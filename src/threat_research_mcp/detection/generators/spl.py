@@ -88,7 +88,7 @@ class SPLGenerator:
 
     def _generate_powershell_rule(self) -> SPLRule:
         """Generate SPL rule for PowerShell download cradles."""
-        search = """index=windows EventCode=4688 Image="*powershell.exe" 
+        search = """index=windows EventCode=4688 Image="*powershell.exe"
 (CommandLine="*DownloadString*" OR CommandLine="*DownloadFile*" OR CommandLine="*Net.WebClient*" OR CommandLine="*Invoke-WebRequest*" OR CommandLine="*Invoke-RestMethod*" OR CommandLine="*Start-BitsTransfer*")
 NOT CommandLine="*Windows\\\\System32*"
 | stats count by ComputerName, User, CommandLine, ParentProcessName
@@ -118,7 +118,7 @@ NOT CommandLine="*Windows\\\\System32*"
 
     def _generate_lsass_rule(self) -> SPLRule:
         """Generate SPL rule for LSASS memory access."""
-        search = """index=windows EventCode=10 TargetImage="*\\\\lsass.exe" 
+        search = """index=windows EventCode=10 TargetImage="*\\\\lsass.exe"
 (GrantedAccess="0x1010" OR GrantedAccess="0x1410" OR GrantedAccess="0x1438")
 NOT (SourceImage="*\\\\svchost.exe" OR SourceImage="*\\\\wininit.exe" OR SourceImage="*\\\\csrss.exe")
 | stats count by ComputerName, User, SourceImage, SourceProcessId, GrantedAccess
@@ -149,7 +149,7 @@ NOT (SourceImage="*\\\\svchost.exe" OR SourceImage="*\\\\wininit.exe" OR SourceI
 
     def _generate_web_protocols_rule(self) -> SPLRule:
         """Generate SPL rule for suspicious web protocols."""
-        search = """index=network sourcetype=firewall 
+        search = """index=network sourcetype=firewall
 (src_process="*powershell.exe" OR src_process="*cmd.exe" OR src_process="*wscript.exe" OR src_process="*cscript.exe" OR src_process="*mshta.exe" OR src_process="*regsvr32.exe" OR src_process="*rundll32.exe")
 (dest_port=80 OR dest_port=443 OR dest_port=8080 OR dest_port=8443)
 NOT (dest_ip=10.* OR dest_ip=192.168.* OR dest_ip=172.16.* OR dest_ip=172.17.* OR dest_ip=172.18.* OR dest_ip=172.19.* OR dest_ip=172.20.* OR dest_ip=172.21.* OR dest_ip=172.22.* OR dest_ip=172.23.* OR dest_ip=172.24.* OR dest_ip=172.25.* OR dest_ip=172.26.* OR dest_ip=172.27.* OR dest_ip=172.28.* OR dest_ip=172.29.* OR dest_ip=172.30.* OR dest_ip=172.31.*)

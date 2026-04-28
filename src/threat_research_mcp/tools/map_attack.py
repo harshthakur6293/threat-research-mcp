@@ -1,15 +1,34 @@
-"""ATT&CK technique mapper — keyword-to-technique index covering 60+ techniques.
+"""ATT&CK technique mapper — keyword-to-technique index with evidence-based confidence scoring.
 
 Keyword matching is case-insensitive. Each entry maps one or more text tokens
 to a single ATT&CK technique. The tool returns every technique whose keywords
-appear in the supplied text, de-duplicated, with supporting evidence.
+appear in the supplied text, de-duplicated, with supporting evidence and a
+confidence score derived from keyword specificity and evidence diversity.
+
+Confidence model:
+  - keyword_specificity: how diagnostic the keyword is (ultra-high → low)
+  - evidence_diversity: how many independent keywords matched
+  - ioc_corroboration: bonus when extracted IOCs align with the technique
+  - source_quality: multiplier based on the intelligence source type
+
+Techniques below confidence_threshold (from operator.yaml, default 0.45) are
+returned in a suppressed list rather than the main techniques list.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
+
+try:
+    import yaml as _yaml
+
+    _YAML_OK = True
+except ImportError:
+    _YAML_OK = False
 
 
 def _compile(keyword: str) -> re.Pattern:
@@ -41,8 +60,8 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "bash -c": ("execution", "T1059.004", "Unix Shell"),
     "sh -c": ("execution", "T1059.004", "Unix Shell"),
     "python -c": ("execution", "T1059.006", "Python"),
-    "perl -e": ("execution", "T1059.006", "Python"),
-    "ruby -e": ("execution", "T1059.006", "Python"),
+    "perl -e": ("execution", "T1059.012", "Perl"),
+    "ruby -e": ("execution", "T1059.013", "Ruby"),
     "wmic": ("execution", "T1047", "Windows Management Instrumentation"),
     "winrm": ("execution", "T1021.006", "Windows Remote Management"),
     "scheduled task": ("execution", "T1053.005", "Scheduled Task"),
@@ -177,7 +196,8 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "supply chain": ("initial-access", "T1195", "Supply Chain Compromise"),
     "valid accounts": ("initial-access", "T1078", "Valid Accounts"),
     "stolen credentials": ("initial-access", "T1078", "Valid Accounts"),
-    "vpn": ("initial-access", "T1078.002", "Domain Accounts"),
+    "vpn credential": ("initial-access", "T1133", "External Remote Services"),
+    "vpn access": ("initial-access", "T1133", "External Remote Services"),
     "exploit public": ("initial-access", "T1190", "Exploit Public-Facing Application"),
     "sql injection": ("initial-access", "T1190", "Exploit Public-Facing Application"),
     "remote code execution": ("initial-access", "T1190", "Exploit Public-Facing Application"),
@@ -202,17 +222,9 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "notarization": ("defense-evasion", "T1553.001", "Gatekeeper Bypass"),
     "mach-o": ("defense-evasion", "T1027", "Obfuscated Files or Information"),
     "universal binary": ("defense-evasion", "T1027", "Obfuscated Files or Information"),
-    "keychain": ("credential-access", "T1555.003", "Credentials from Web Browsers"),
-    "security find-generic-password": (
-        "credential-access",
-        "T1555.003",
-        "Credentials from Web Browsers",
-    ),
-    "security find-internet-password": (
-        "credential-access",
-        "T1555.003",
-        "Credentials from Web Browsers",
-    ),
+    "keychain": ("credential-access", "T1555.001", "Keychain"),
+    "security find-generic-password": ("credential-access", "T1555.001", "Keychain"),
+    "security find-internet-password": ("credential-access", "T1555.001", "Keychain"),
     "session hijack": ("credential-access", "T1539", "Steal Web Session Cookie"),
     "session cookie": ("credential-access", "T1539", "Steal Web Session Cookie"),
     "telegram bot api": ("exfiltration", "T1567.002", "Exfiltration to Web Service"),
@@ -232,7 +244,7 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "linkedin lure": ("initial-access", "T1566.002", "Spearphishing Link"),
     "fake job": ("initial-access", "T1566.002", "Spearphishing Link"),
     "fake recruiter": ("initial-access", "T1566.002", "Spearphishing Link"),
-    "cryptocurrency wallet": ("collection", "T1530", "Data from Cloud Storage"),
+    "cryptocurrency wallet": ("collection", "T1005", "Data from Local System"),
     "crypto wallet": ("collection", "T1005", "Data from Local System"),
     "ledger live": ("collection", "T1005", "Data from Local System"),
     "exodus wallet": ("collection", "T1005", "Data from Local System"),
@@ -277,7 +289,8 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
     "kubernetes": ("discovery", "T1613", "Container and Resource Discovery"),
     # ── Impact ───────────────────────────────────────────────────────────────
     "ransomware": ("impact", "T1486", "Data Encrypted for Impact"),
-    "encrypt": ("impact", "T1486", "Data Encrypted for Impact"),
+    "encrypted files": ("impact", "T1486", "Data Encrypted for Impact"),
+    "ransom note": ("impact", "T1486", "Data Encrypted for Impact"),
     "wiper": ("impact", "T1485", "Data Destruction"),
     "data destruction": ("impact", "T1485", "Data Destruction"),
     "defacement": ("impact", "T1491", "Defacement"),
@@ -289,11 +302,158 @@ _INDEX: Dict[str, Tuple[str, str, str]] = {
 _PATTERNS: Dict[str, re.Pattern] = {kw: _compile(kw) for kw in _INDEX}
 
 
-def map_attack(text: str) -> str:
-    """Map free-form threat text to ATT&CK techniques.
+# ── Confidence scoring helpers ────────────────────────────────────────────────
 
-    Returns JSON with matched techniques, their tactic, and the keyword evidence.
+
+def _load_confidence_weights() -> Dict[str, Any]:
+    candidates = [
+        Path(__file__).parent.parent.parent.parent / "playbook" / "confidence_weights.yaml",
+        Path(os.getcwd()) / "playbook" / "confidence_weights.yaml",
+    ]
+    if _YAML_OK:
+        for p in candidates:
+            if p.exists():
+                try:
+                    with open(p, encoding="utf-8") as fh:
+                        return _yaml.safe_load(fh) or {}
+                except (OSError, _yaml.YAMLError):
+                    continue
+    return {}
+
+
+_WEIGHTS: Dict[str, Any] = _load_confidence_weights()
+
+
+def _keyword_specificity(keyword: str) -> float:
+    """Return specificity score [0.0, 1.0] for a keyword.
+
+    The YAML uses dot-notation ("cobalt.strike") while the index uses spaces
+    ("cobalt strike"). We normalise both to dots before comparing.
     """
+    kw_dotted = keyword.strip().lower().replace(" ", ".")
+    spec = _WEIGHTS.get("keyword_specificity", {})
+    for tier, score in [
+        ("ultra_high", 0.95),
+        ("high", 0.80),
+        ("medium", 0.60),
+        ("low", 0.30),
+    ]:
+        tier_keys = [k.lower().replace(" ", ".") for k in spec.get(tier, [])]
+        if kw_dotted in tier_keys:
+            return score
+    return 0.50  # default — unknown keyword
+
+
+def _evidence_diversity_score(count: int) -> float:
+    ed = _WEIGHTS.get("evidence_diversity_scores", {})
+    if count >= 5:
+        return float(ed.get("5+", 0.95))
+    return float(ed.get(str(count), 0.30 + count * 0.15))
+
+
+def _source_quality_score(source_quality: str) -> float:
+    sq = _WEIGHTS.get("source_quality", {})
+    return float(sq.get(source_quality, sq.get("unknown", 0.55)))
+
+
+def _ioc_corroboration_bonus(tactic: str, iocs: Dict[str, List]) -> float:
+    ic = _WEIGHTS.get("ioc_corroboration", {})
+    has_network = bool(iocs.get("ips") or iocs.get("domains"))
+    has_hash = bool(iocs.get("hashes"))
+    if tactic in ("command-and-control", "exfiltration") and has_network:
+        return float(ic.get("network_ioc_for_c2_technique", 0.30))
+    if tactic in ("execution", "defense-evasion", "persistence") and has_hash:
+        return float(ic.get("file_hash_for_execution", 0.25))
+    if has_hash:
+        return float(ic.get("file_hash_for_any_technique", 0.15))
+    return float(ic.get("no_ioc_corroboration", 0.0))
+
+
+def _compute_confidence(
+    evidence: List[str],
+    tactic: str,
+    iocs: Dict[str, List],
+    source_quality: str,
+) -> float:
+    """Compute evidence-based confidence score [0.0, 1.0]."""
+    dim_weights = _WEIGHTS.get(
+        "dimensions",
+        {
+            "keyword_specificity": 0.35,
+            "evidence_diversity": 0.25,
+            "ioc_corroboration": 0.20,
+            "source_quality": 0.20,
+        },
+    )
+
+    avg_specificity = (
+        sum(_keyword_specificity(kw) for kw in evidence) / len(evidence) if evidence else 0.30
+    )
+    diversity = _evidence_diversity_score(len(evidence))
+    corroboration = _ioc_corroboration_bonus(tactic, iocs)
+    quality = _source_quality_score(source_quality)
+
+    score = (
+        avg_specificity * float(dim_weights.get("keyword_specificity", 0.35))
+        + diversity * float(dim_weights.get("evidence_diversity", 0.25))
+        + corroboration * float(dim_weights.get("ioc_corroboration", 0.20))
+        + quality * float(dim_weights.get("source_quality", 0.20))
+    )
+    return round(min(1.0, max(0.0, score)), 3)
+
+
+def _confidence_label(score: float) -> str:
+    high = float(_WEIGHTS.get("high_threshold", 0.85))
+    warn = float(_WEIGHTS.get("warn_threshold", 0.65))
+    suppress = float(_WEIGHTS.get("suppress_threshold", 0.45))
+    if score >= high:
+        return "HIGH"
+    if score >= warn:
+        return "MEDIUM"
+    if score >= suppress:
+        return "LOW"
+    return "SUPPRESSED"
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+
+def map_attack(
+    text: str,
+    iocs: Dict[str, List] | None = None,
+    source_quality: str = "unknown",
+    confidence_threshold: float | None = None,
+) -> str:
+    """Map free-form threat text to ATT&CK techniques with evidence-based confidence.
+
+    Args:
+        text: Raw threat intel text to analyse.
+        iocs: Optional IOC dict from extract_iocs_from_text() — used for
+              IOC corroboration bonus when scoring technique confidence.
+        source_quality: Source type key from confidence_weights.yaml
+                        (e.g. 'vendor_blog', 'cisa_advisory', 'unknown').
+        confidence_threshold: Override the suppress threshold from
+                              confidence_weights.yaml / operator.yaml.
+                              Techniques below this score appear in suppressed[].
+
+    Returns: JSON with techniques (above threshold), suppressed (below threshold),
+             and confidence metadata.
+    """
+    if iocs is None:
+        iocs = {}
+
+    # Flatten rich IOC dicts to plain lists for corroboration check
+    flat_iocs: Dict[str, List] = {}
+    for key in ("ips", "domains", "hashes", "emails"):
+        items = iocs.get(key, [])
+        flat_iocs[key] = [i["value"] if isinstance(i, dict) else i for i in items]
+
+    # Determine threshold
+    if confidence_threshold is None:
+        suppress_thresh = float(_WEIGHTS.get("suppress_threshold", 0.45))
+    else:
+        suppress_thresh = confidence_threshold
+
     seen: Dict[str, dict] = {}
 
     for keyword, (tactic, tid, name) in _INDEX.items():
@@ -308,5 +468,32 @@ def map_attack(text: str) -> str:
                 }
             seen[tid]["evidence"].append(keyword.strip())
 
-    techniques: List[dict] = sorted(seen.values(), key=lambda t: t["tactic"])
-    return json.dumps({"techniques": techniques, "count": len(techniques)}, indent=2)
+    techniques: List[dict] = []
+    suppressed: List[dict] = []
+
+    for entry in sorted(seen.values(), key=lambda t: t["tactic"]):
+        conf = _compute_confidence(entry["evidence"], entry["tactic"], flat_iocs, source_quality)
+        label = _confidence_label(conf)
+        enriched = {**entry, "confidence": conf, "confidence_label": label}
+        if conf >= suppress_thresh:
+            techniques.append(enriched)
+        else:
+            suppressed.append(enriched)
+
+    return json.dumps(
+        {
+            "techniques": techniques,
+            "count": len(techniques),
+            "suppressed": suppressed,
+            "suppressed_count": len(suppressed),
+            "confidence_threshold": suppress_thresh,
+            "source_quality": source_quality,
+            "note": (
+                f"{len(suppressed)} technique(s) suppressed (confidence < {suppress_thresh}). "
+                "Lower confidence_threshold or check suppressed[] to see them."
+                if suppressed
+                else ""
+            ),
+        },
+        indent=2,
+    )

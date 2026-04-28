@@ -1,475 +1,362 @@
 # Threat Research MCP
 
-<div align="center">
+An offline-first MCP server for turning threat intelligence into an analyst-ready
+hunt and detection package.
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=18&duration=2800&pause=1200&color=00C853&center=true&vCenter=true&multiline=false&width=750&lines=Turn+threat+reports+into+detection+rules+%E2%80%94+instantly;STIX+2.1+%C2%B7+MISP+%C2%B7+ATT%26CK+Navigator+%C2%B7+Sigma+%C2%B7+KQL+%C2%B7+SPL;150%2B+ATT%26CK+keywords+%C2%B7+28+playbook+techniques;Offline-first+%C2%B7+Air-gapped+SOC+%C2%B7+No+LLM+inside+the+toolbox" alt="Threat Research MCP" />
+It takes raw threat reports, STIX bundles, MISP events, RSS/HTML feeds, or local
+files and produces structured outputs: confidence-scored IOCs, ATT&CK technique
+mapping with evidence, hunt hypotheses, Sigma/KQL/SPL/EQL/YARA drafts, ATT&CK
+Navigator layers, IOC blocklist rules, campaign state, and an interactive HTML
+report.
 
-<br/>
+This project is meant to be the workflow layer around specialist security MCPs:
+it can run standalone, or an agentic client can pair it with MITRE ATT&CK,
+Security Detections, Splunk, Sigma, and enrichment MCPs.
 
 [![CI](https://github.com/harshthakur6293/threat-research-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/harshthakur6293/threat-research-mcp/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-110%20passing-brightgreen.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-118%20passing-brightgreen.svg)]()
+[![Coverage Gate](https://img.shields.io/badge/coverage%20gate-65%25-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io)
-[![Tested with Claude](https://img.shields.io/badge/tested%20with-Claude%20Sonnet%204.6-orange.svg)](https://anthropic.com)
-[![Tested with GPT-4o](https://img.shields.io/badge/tested%20with-GPT--4o-blue.svg)](https://openai.com)
-[![Tested with Ollama](https://img.shields.io/badge/tested%20with-Ollama%20%28offline%29-lightgrey.svg)](https://ollama.com)
 
-**Turn any threat report, STIX bundle, or MISP event into hunt hypotheses, Sigma rules, and ATT&CK heatmaps — in a single Claude conversation.**
+## Current State
 
-*Deterministic. Offline-first. No LLM calls inside the toolbox.*
+This is a working beta, not a finished commercial product.
 
-[Quick Start](#setup) · [Tool Catalog](#tools) · [Workflows](#analyst-workflows) · [Contribute](#contributing-techniques-no-python-required) · [Docker](#docker-standard)
+Verified locally on Windows with Python 3.12:
 
-</div>
+```text
+118 passed, 5 skipped
+coverage gate: 65.30%
+ruff check: pass
+ruff format --check: pass
+bandit: pass
+pip-audit: pass
+registered MCP tools: 46
+```
 
----
+Known limitations:
 
-## The Problem This Solves
+- The package is installable locally today. PyPI, `uvx`, and npm wrapper support
+  are product goals, not published channels yet.
+- Built-in Sigma coverage is intentionally curated. Unsupported techniques return
+  `no_curated_rule` with community search links instead of fake generic rules.
+- ATT&CK lookup tools require a local SQLite database built with
+  `python scripts/build_attack_db.py`; without it they return a structured
+  "database not built" response.
+- IOC enrichment requires optional API keys. The core pipeline works offline.
+- Generated detections are analyst drafts. They should be reviewed, tuned, and
+  tested before production deployment.
 
-Every SOC analyst knows the loop: a threat report lands, you spend two hours manually extracting IOCs, googling ATT&CK technique IDs, writing Sigma rules from scratch, then fighting your SIEM to validate them. Then the next report drops.
+## Why This Exists
 
-This MCP breaks that loop. You paste a report (or point at a TAXII feed, STIX bundle, or MISP event) and your AI assistant orchestrates the full pipeline — IOC extraction → TTP mapping → hunt hypotheses → detection rules → Sigma quality scoring → ATT&CK Navigator heatmap — in one conversation.
+The painful SOC loop is predictable:
 
-## Demo — Sapphire Sleet macOS analysis in one pipeline call
+1. A threat report lands.
+2. An analyst extracts IOCs.
+3. They map ATT&CK techniques.
+4. They write hunts.
+5. They search for existing detections.
+6. They draft new rules for gaps.
+7. They prepare a report or ticket for review.
 
-<div align="center">
-<img src="demo/demo.svg" alt="threat-research-mcp pipeline demo" width="100%"/>
-</div>
+Threat Research MCP compresses that workflow into tool-callable stages that any
+MCP-capable client can orchestrate.
 
----
+The strongest path is:
 
-## Architecture
+```text
+threat report
+  -> context-aware IOC extraction
+  -> ATT&CK mapping with evidence and confidence
+  -> hunt hypotheses and SIEM-native queries
+  -> curated Sigma / fallback gap links
+  -> ATT&CK Navigator layer
+  -> interactive HTML report
+  -> optional campaign tracking
+```
+
+## Demo Package
+
+The repo includes a Sapphire Sleet macOS demo package under `demo/`:
+
+<p align="center">
+  <img src="demo/demo.svg" alt="Threat Research MCP terminal demo" width="100%">
+</p>
+
+```text
+demo/sapphire_sleet_input.txt
+demo/sapphire_sleet_pipeline.json
+demo/sapphire_sleet_report.html
+demo/sapphire_sleet_navigator_layer.json
+demo/sapphire_sleet_sigma_bundle.yml
+demo/sapphire_sleet_iocs.csv
+demo/sapphire_sleet_demo.md
+```
+
+The HTML report is self-contained and opens in a browser. It shows:
+
+- summary counts and completed pipeline stages
+- IOC table with confidence and labels
+- ATT&CK tactic heatmap
+- IOC -> technique -> tactic graph
+- hunt hypothesis cards with SPL, KQL, and Elastic tabs
+- Sigma cards with expandable YAML and community rule links
+
+For a demo, lead with the report rather than the tool list. The product story is
+the analyst deliverable.
+
+Open the generated report locally:
+
+```text
+demo/sapphire_sleet_report.html
+```
+
+## Workflow Visual
+
+```mermaid
+flowchart LR
+    A["Raw Intel<br/>report, STIX, MISP, RSS, local file"] --> B["IOC Extraction<br/>confidence + labels"]
+    B --> C["ATT&CK Mapping<br/>evidence + confidence"]
+    C --> D["Hunt Hypotheses<br/>SPL / KQL / Elastic"]
+    C --> E["Detection Drafts<br/>Sigma / KQL / SPL / EQL / YARA"]
+    B --> F["IOC Sigma Bundle<br/>TTL + blocklist guidance"]
+    C --> G["Navigator Layer<br/>ATT&CK heatmap JSON"]
+    D --> H["HTML Report<br/>graph + heatmap + queries"]
+    E --> H
+    F --> H
+    G --> H
+    H --> I["Campaign Tracker<br/>multi-report state"]
+```
+
+## Report Visual Model
 
 ```mermaid
 graph TB
-    subgraph Orchestrators["🤖 AI Orchestrators"]
-        Claude["Claude Sonnet 4.6"]
-        GPT["GPT-4o"]
-        Ollama["Ollama (air-gapped)"]
+    subgraph Report["Interactive HTML Report"]
+        Summary["Summary Strip<br/>IOCs, techniques, hunts, rules"]
+        Table["IOC Table<br/>confidence + labels"]
+        Heatmap["ATT&CK Tactic Heatmap"]
+        Graph["IOC -> Technique -> Tactic Graph"]
+        Hunts["Hunt Cards<br/>SPL / KQL / Elastic tabs"]
+        Sigma["Sigma Cards<br/>YAML + community links"]
     end
 
-    subgraph MCP["🛡️ threat-research-mcp  (this project)"]
-        direction TB
-        Ingest["📥 Feed Ingestion\nTAXII · RSS · HTML · local"]
-        STIX["📦 STIX Parser\n2.0 / 2.1 bundles"]
-        IOC["🔍 IOC Extraction\nIP · Domain · Hash · URL · Email"]
-        Enrich["🌐 IOC Enrichment\nVT · OTX · AbuseIPDB · URLhaus"]
-        TTP["🗺️ TTP Mapping\n150+ keywords · word-boundary regex"]
-        Hunt["🎯 Hunt Hypothesis Engine\n28 techniques · 9 log source types"]
-        Detect["🚨 Detection Generation\nSigma · KQL · SPL · EQL · YARA"]
-        Score["📊 Sigma Scorer\nspecificity · coverage · FP risk"]
-        Nav["🗂️ Navigator Export\nATT&CK layer 4.5 JSON"]
-        ART["⚗️ Atomic Red Team\ntest IDs per technique"]
-        MISP["🔗 MISP Bridge\npull · push · create events"]
-    end
-
-    subgraph Sources["📡 Data Sources"]
-        TAXII2["TAXII 2.1"]
-        RSS["RSS / Atom"]
-        STIXFile["STIX Bundles"]
-        MISPInst["MISP Instance"]
-        Reports["Threat Reports"]
-    end
-
-    subgraph Outputs["📤 Outputs"]
-        SigmaOut["Sigma Rules"]
-        KQLOut["KQL (Sentinel)"]
-        SPLOut["SPL (Splunk)"]
-        EQLOut["Elastic EQL"]
-        YARAOut["YARA Rules"]
-        NavOut["Navigator Heatmap"]
-        MISPOut["MISP Attributes"]
-    end
-
-    Claude & GPT & Ollama -->|MCP protocol| MCP
-    Sources --> Ingest & STIX & MISP
-    Ingest & STIX & MISP --> IOC --> Enrich --> TTP --> Hunt --> Detect & Score & Nav & ART
-    Detect --> SigmaOut & KQLOut & SPLOut & EQLOut & YARAOut
-    Nav --> NavOut
-    MISP -->|push back| MISPOut
+    Pipeline["run_pipeline_tool JSON"] --> Summary
+    Pipeline --> Table
+    Pipeline --> Heatmap
+    Pipeline --> Graph
+    Pipeline --> Hunts
+    Pipeline --> Sigma
 ```
 
----
+## Core Capabilities
 
-## The Research → Hunt → Detection Pipeline
+### Intelligence Intake
 
-```mermaid
-flowchart TD
-    A(["📄 Input\nReport · STIX · MISP · TAXII"]):::input --> B{Input type?}
+- Paste raw report text directly into `run_pipeline_tool`
+- Ingest local files, HTML reports, RSS/Atom feeds, TAXII 2.1 sources, and STIX
+  bundles
+- Pull MISP events when `MISP_URL` and `MISP_KEY` are configured
 
-    B -->|STIX bundle| C["parse_stix\nstix_to_text"]
-    B -->|MISP event| D["misp_pull"]
-    B -->|Text / URL / feed| E["run_pipeline_tool"]
+### IOC Extraction
 
-    C & D & E --> F(["🔍 IOCs Extracted\nIPs · Domains · Hashes · URLs"]):::stage
+`extract_iocs` returns rich IOC objects:
 
-    F --> G["map_ttp\n150+ keyword index"]
-
-    G --> H{Techniques\nmapped?}
-    H -->|No match| I["⚠️ Broaden text\nor check source quality"]:::warn
-    H -->|Yes| J(["🗺️ ATT&CK Techniques\nT-IDs · Tactics · Evidence"]):::stage
-
-    J --> K["hunt_for_techniques\n(log_sources=your env)"]
-    K --> L(["🎯 Hunt Hypotheses\n+ SPL · KQL · Elastic queries"]):::stage
-
-    J --> M["sigma_for_technique\nkql_for_technique\nspl_for_technique"]
-    M --> N(["🚨 Detection Rules\nall formats"]):::stage
-
-    N --> O["score_sigma\nspecificity · coverage · FP risk"]
-    O --> P{Overall\nscore?}
-    P -->|"≥ 4 ✅"| Q["atomic_tests_for_technique\nAtomic Red Team IDs"]
-    P -->|"< 4 ⚠️"| R["Tune rule\n(add filters / tighten scope)"]:::warn
-    R --> O
-
-    Q --> S["navigator_layer\nATT&CK Navigator JSON"]
-    S --> T(["🗂️ Drag into Navigator\nfor instant heatmap"]):::output
-
-    Q --> U["misp_push_sigma\nor misp_create_event"]
-    U --> V(["🔗 Rule shared back\nto MISP"]):::output
-
-    classDef input fill:#1a1a2e,color:#eee,stroke:#4a90e2
-    classDef stage fill:#16213e,color:#eee,stroke:#0f3460
-    classDef output fill:#0f3460,color:#eee,stroke:#e94560
-    classDef warn fill:#3a1a00,color:#ffb347,stroke:#ff7c00
+```json
+{
+  "value": "203.0.113.10",
+  "confidence": 0.8,
+  "label": "MALICIOUS"
+}
 ```
 
----
+It filters common false positives such as:
 
-## Typical Analyst Workflow
+- RFC1918 and loopback IPs
+- software version strings that look like IPs
+- known benign domains
+- macOS bundle identifiers such as `com.apple.*`
+- filename extensions that look like domains
 
-```mermaid
-sequenceDiagram
-    actor Analyst
-    participant Claude as Claude / GPT-4o
-    participant MCP as threat-research-mcp
-    participant Nav as ATT&CK Navigator
-    participant MISP as MISP Instance
+The context rules live in `playbook/ioc_context_patterns.yaml`.
 
-    Analyst->>Claude: "Analyze this Sapphire Sleet macOS report"
+### ATT&CK Mapping
 
-    Claude->>MCP: run_pipeline_tool(text, log_sources="edr_macos,proxy_logs")
-    MCP-->>Claude: IOCs: [1.2.3.4, evil.com, ...]<br/>Techniques: T1059.002, T1543.001, T1548.006, T1539<br/>Hypotheses + KQL queries
+`map_ttp` maps free-form text to ATT&CK techniques using keyword evidence and a
+confidence model. Each technique includes:
 
-    Claude->>MCP: navigator_layer(map_attack_json)
-    MCP-->>Claude: ATT&CK Navigator JSON (layer 4.5)
-    Claude->>Nav: opens navigator URL with layer
-    Nav-->>Analyst: 🗺️ 8 macOS techniques highlighted in heatmap
+- ATT&CK ID
+- name
+- tactic
+- matched evidence
+- confidence score
+- confidence label
 
-    Claude->>MCP: score_sigma(sigma_yaml="...")
-    MCP-->>Claude: specificity:4  coverage:3  fp_risk:2  overall:4 ✅
+Low-confidence matches are not discarded silently. They are returned in a
+`suppressed` list for analyst review.
 
-    Claude->>MCP: atomic_tests_for_technique("T1059.002")
-    MCP-->>Claude: [T1059.002-1 "osascript execution", T1059.002-2 "AppleScript payload"]
+The scoring weights live in `playbook/confidence_weights.yaml`.
 
-    Analyst->>Claude: "Push the Sigma rule to MISP event 1234"
-    Claude->>MCP: misp_push_sigma(event_id="1234", sigma_yaml, technique_id="T1059.002")
-    MCP->>MISP: POST /attributes/add/1234
-    MISP-->>MCP: attribute_id: 5678
-    MCP-->>Claude: ✅ Rule attached to MISP event 1234 as attribute 5678
-    Claude-->>Analyst: Done — team can now pull the rule from MISP
-```
+### Hunt and Detection Output
 
----
+The server can generate:
 
-## ATT&CK Coverage Mind Map
+- hunt hypotheses from intel text
+- hunt hypotheses for specific ATT&CK techniques
+- Sigma rules for curated techniques
+- IOC blocklist Sigma bundles with TTL guidance
+- Microsoft Sentinel KQL
+- Splunk SPL
+- Elastic EQL
+- YARA
+- ATT&CK Navigator layer JSON
+- Atomic Red Team test references
 
-```mermaid
-mindmap
-  root((**threat-research-mcp**<br/>150+ keywords<br/>28 playbook techniques))
-    **Initial Access**
-      Phishing T1566
-      Spearphishing Link T1566.002
-      Supply Chain T1195
-      Valid Accounts T1078
-      Fake Job Lure
-      LinkedIn Lure
-    **Execution**
-      PowerShell T1059.001
-      AppleScript / osascript T1059.002
-      CMD T1059.003
-      WMI T1047
-      Scheduled Tasks T1053.005
-      curl pipe bash
-      zsh -c
-    **Persistence**
-      Run Keys T1547.001
-      LaunchAgent T1543.001
-      Web Shell T1505.003
-      Crontab T1053.003
-      Launch Daemon
-    **Privilege Escalation**
-      UAC Bypass T1548.002
-      Pass-the-Hash T1550.002
-      Kerberoasting T1558.003
-      TCC Manipulation T1548.006
-    **Defense Evasion**
-      Obfuscation T1027
-      Process Injection T1055
-      Fileless Execution
-      Gatekeeper Bypass
-      Reflective DLL T1620
-    **Credential Access**
-      LSASS Dump T1003.001
-      Mimikatz
-      Keychain T1555.003
-      Session Cookie T1539
-      Password Spray T1110.003
-    **C2 & Exfiltration**
-      DNS Tunneling T1071.004
-      Domain Fronting T1090.004
-      Cobalt Strike
-      Telegram Bot T1567.002
-      rclone / MEGA
-    **Discovery**
-      BloodHound
-      nmap T1046
-      systeminfo T1082
-      Domain Trust
-```
+Sigma behavior is intentionally conservative: no generic placeholder rule is
+returned as if it were production-ready.
 
----
+### Reporting and Campaign Tracking
 
-## Deployment Options
+`generate_threat_report` creates a browser-ready HTML report from pipeline JSON.
 
-```mermaid
-graph LR
-    subgraph Dev["🖥️ Development / Local"]
-        direction TB
-        CLI["pip install -e .\npython -m threat_research_mcp"]
-        CD["Claude Desktop\nclaude_desktop_config.json"]
-        CLI -.->|stdio| CD
-    end
+Campaign tools store multi-report campaign state in local JSON files:
 
-    subgraph Standard["🐳 Docker (Standard)"]
-        direction TB
-        DC["docker compose up -d"]
-        MCP2["threat-research-mcp\n:8000"]
-        VT2["VirusTotal API\n(optional)"]
-        MISP2["MISP Instance\n(optional)"]
-        DC --> MCP2
-        MCP2 <-->|"MISP_URL + MISP_KEY"| MISP2
-        MCP2 <-->|"VT_API_KEY"| VT2
-    end
+- `campaign_update`
+- `campaign_get`
+- `campaign_list`
+- `campaign_correlate_ioc`
 
-    subgraph AirGap["🔒 Air-Gapped SOC"]
-        direction TB
-        AG["docker compose\n-f docker-compose.ollama.yml up"]
-        MCP3["threat-research-mcp\nTHREAT_MCP_OFFLINE=true"]
-        OLL["Ollama\nllama3.1:8b"]
-        AG --> MCP3
-        AG --> OLL
-        MCP3 <-->|"no outbound calls"| OLL
-    end
+This is simple by design. A team can point the campaign store at a shared Git
+repo and review changes over time.
 
-    style AirGap fill:#1a0000,color:#ffb347,stroke:#ff4444
-    style Standard fill:#001a00,color:#90ee90,stroke:#00bb00
-    style Dev fill:#00001a,color:#87ceeb,stroke:#4169e1
-```
+### Local ATT&CK Lookup
 
----
+Optional ATT&CK database tools:
 
-## Tools
+- `attack_get_technique`
+- `attack_get_threat_groups`
+- `attack_get_techniques_by_group`
+- `attack_attribute_to_group`
+- `attack_get_data_sources`
+- `attack_get_mitigations`
 
-### Feed Ingestion
-
-| Tool | What it does |
-|---|---|
-| `ingest_feed(config_path)` | Pull from TAXII 2.1, RSS, HTML, or local files using a YAML sources config |
-| `analyze_intel(text, sources_config_path)` | Run the full pipeline on text + feed documents combined |
-
-### STIX 2.x Parsing
-
-| Tool | What it does |
-|---|---|
-| `parse_stix(bundle_json)` | Parse a STIX 2.0/2.1 bundle — IOCs, ATT&CK techniques, malware families, threat actors. No external deps. |
-| `stix_to_text(bundle_json)` | Flatten a STIX bundle into pipeline-ready text for `run_pipeline_tool` |
-
-### IOC Extraction & Enrichment
-
-| Tool | What it does |
-|---|---|
-| `extract_iocs(text)` | Extract IPs, domains, URLs, hashes, emails. macOS extension blocklist prevents `.app`/`.plist`/`.kext` false positives. |
-| `enrich_ioc_tool(ioc)` | Check a single IOC against VT, OTX, AbuseIPDB, URLhaus |
-| `enrich_iocs_tool(iocs_csv)` | Bulk enrich up to 20 IOCs |
-
-### TTP Mapping
-
-| Tool | What it does |
-|---|---|
-| `map_ttp(text)` | Map free-form threat text to ATT&CK technique IDs, names, tactics, and evidence keywords. Word-boundary matching prevents substring false positives. |
-
-### ATT&CK Navigator Export
-
-| Tool | What it does |
-|---|---|
-| `navigator_layer(map_attack_json, layer_name, domain)` | Generate an ATT&CK Navigator 4.5 layer JSON from `map_ttp` output. Drag into [mitre-attack.github.io/attack-navigator](https://mitre-attack.github.io/attack-navigator/) for an instant color-coded heatmap. |
-
-### Full Pipeline (single call)
-
-| Tool | What it does |
-|---|---|
-| `run_pipeline_tool(text, sources_config, log_sources, enrich)` | One call: feed ingestion → IOC extraction → enrichment → TTP mapping → hunt hypotheses → Sigma rules |
-| `list_log_sources_tool()` | All available log source keys + environment presets (windows_sysmon, network, perimeter, edr, macos) |
-
-### Hunt Hypothesis Generation
-
-| Tool | What it does |
-|---|---|
-| `hunt_from_intel(text)` | Full pipeline: text → techniques → hypotheses + SIEM queries |
-| `hunt_for_techniques(technique_ids, log_sources)` | Given technique IDs, get hypotheses + SPL/KQL/Elastic per log source |
-
-### Detection Generation — Sigma
-
-| Tool | What it does |
-|---|---|
-| `generate_sigma_rule(title, behavior, logsource)` | Generate a Sigma rule from a title and behavior description |
-| `sigma_for_technique(technique_id)` | Production-ready Sigma rule for a specific ATT&CK technique |
-| `sigma_bundle_for_techniques(technique_ids)` | Sigma rules for multiple techniques at once |
-| `validate_sigma_rule(yaml_text)` | Validate Sigma YAML structure offline (no Sigma CLI required) |
-
-### Sigma Quality Scoring
-
-| Tool | What it does |
-|---|---|
-| `score_sigma(sigma_yaml)` | Score a Sigma rule on specificity (1-5), coverage (1-5), and FP risk (1-5) with rationale |
-| `score_technique_sigma(technique_id)` | Score the built-in Sigma rule for any technique — quick triage for tuning priority |
-| `atomic_tests_for_technique(technique_id)` | Atomic Red Team test IDs for a technique — validate detections fire before production |
-
-#### Sigma Score Interpretation
-
-```
-Specificity  │ 1 = generic (any process)      5 = hash/event-ID-specific
-Coverage     │ 1 = single SIEM               5 = Splunk + Sentinel + Elastic
-FP Risk      │ 1 = safe (tight, specific)     5 = noisy (broad wildcards, no filters)
-Overall      │ 1 = needs tuning              4-5 = production-ready
-```
-
-### Detection Generation — Native SIEM Formats
-
-| Tool | What it does |
-|---|---|
-| `kql_for_technique(technique_id)` | KQL Analytics Rule for Microsoft Sentinel (severity, frequency, alert details) |
-| `spl_for_technique(technique_id)` | SPL Saved Search for Splunk (cron schedule, drilldown, recommended actions) |
-| `eql_for_technique(technique_id)` | Elastic Security rule (risk score, threat mapping, Kibana Detection Engine format) |
-
-### Detection Generation — YARA
-
-| Tool | What it does |
-|---|---|
-| `yara_for_technique(technique_id)` | YARA file-scanning rule for a technique |
-| `generate_yara(rule_name, strings_csv, condition)` | Build a custom YARA rule from IOC strings (hashes, strings, patterns) |
-
-### Coverage & Gap Analysis
-
-| Tool | What it does |
-|---|---|
-| `detection_coverage_gap(techniques_csv, detections_csv)` | Find techniques you track but have no detection for |
-
-### MISP Integration
-
-| Tool | What it does |
-|---|---|
-| `misp_pull(tags, limit, threat_level)` | Pull MISP events filtered by tag/threat level → IOCs + pipeline-ready text |
-| `misp_push_sigma(event_id, sigma_yaml, technique_id)` | Push a generated Sigma rule as a MISP attribute to an existing event |
-| `misp_create_event(pipeline_result)` | Create a new MISP event from pipeline output — IOC attributes + ATT&CK tags auto-populated |
-
-### Storage & Utilities
-
-| Tool | What it does |
-|---|---|
-| `search_intel_history(text_query, workflow)` | Search previously analyzed intel from local SQLite DB |
-| `search_ingested_docs(text_query, source_name)` | Search normalized feed documents |
-| `get_intel_by_id(row_id)` | Retrieve a full stored analysis product by ID |
-| `timeline(text)` | Sort log lines or event notes into chronological order |
-
----
-
-## Analyst Workflows
-
-### Workflow 1 — Paste a threat report
-
-```
-You: "Analyze this report on Sapphire Sleet macOS intrusion"
-
-Claude → run_pipeline_tool(text=<report>, log_sources="edr_macos,proxy_logs")
-       → navigator_layer(...)         # instant heatmap
-       → score_sigma(sigma_yaml=...)  # FP risk check
-       → atomic_tests_for_technique("T1059.002")  # lab validation IDs
-```
-
-### Workflow 2 — Pull from MISP and feed back
-
-```
-You: "Pull our latest high-severity MISP events and generate detections"
-
-Claude → misp_pull(threat_level=1, limit=5)
-       → run_pipeline_tool(pipeline_text=...)
-       → sigma_for_technique("T1059.001")
-       → score_sigma(sigma_yaml=...)   # ≥ 4 → push back
-       → misp_push_sigma(event_id="...", sigma_yaml=...)
-```
-
-### Workflow 3 — STIX bundle → Navigator layer
-
-```
-You: "Parse this MITRE STIX bundle and show me the coverage heatmap"
-
-Claude → parse_stix(bundle_json=...)
-       → map_ttp(techniques from bundle)
-       → navigator_layer(map_attack_json=..., layer_name="Q2 Campaign")
-       # → opens ATT&CK Navigator with color-coded heatmap
-```
-
-### Workflow 4 — Air-gapped SOC (Ollama)
+Build the database:
 
 ```bash
-docker compose -f docker-compose.ollama.yml up -d
-# No internet. Ollama runs llama3.1:8b locally.
-# All tools work. Enrichment APIs are skipped (THREAT_MCP_OFFLINE=true).
+python scripts/build_attack_db.py
 ```
 
----
+The database is written to `playbook/attack.db`. It is not required for the core
+pipeline.
 
-## Companion MCPs
+## Tool Catalog
 
-```mermaid
-graph LR
-    subgraph This["threat-research-mcp (this)"]
-        Pipeline["R→H→D Pipeline\nIOC · TTP · Hunt · Detect"]
-    end
-    subgraph MATT["mitre-attack-mcp"]
-        MATTDesc["Technique descriptions\nMitigations · Data sources\nGroup attribution"]
-    end
-    subgraph SecDet["Security-Detections-MCP"]
-        SecDetDesc["8,200+ existing rules\nSigma · Splunk · KQL\nCoverage gap search"]
-    end
+The server currently registers 46 MCP tools.
 
-    Pipeline <-->|"get_technique\nget_group"| MATTDesc
-    Pipeline <-->|"list_by_mitre\ndetection_coverage_gap"| SecDetDesc
+### Primary Workflow
 
-    style This fill:#1a1a2e,color:#eee,stroke:#4a90e2
-    style MATT fill:#16213e,color:#eee,stroke:#0f3460
-    style SecDet fill:#0f3460,color:#eee,stroke:#e94560
-```
+| Tool | Purpose |
+|---|---|
+| `run_pipeline_tool` | Full intel -> IOC -> ATT&CK -> hunt -> Sigma pipeline |
+| `generate_threat_report` | Create interactive HTML report from pipeline JSON |
+| `navigator_layer` | Create ATT&CK Navigator layer JSON |
+| `get_operator_context` | Show active operator/SOC profile |
 
-Neither companion MCP is required. This server works fully standalone.
+### IOC and Enrichment
 
----
+| Tool | Purpose |
+|---|---|
+| `extract_iocs` | Context-aware IOC extraction |
+| `enrich_ioc_tool` | Enrich one IOC with optional external APIs |
+| `enrich_iocs_tool` | Bulk-enrich comma-separated IOCs |
+| `ioc_sigma_bundle` | Generate Tier 1 IOC blocklist Sigma rules |
 
-## Setup
+### ATT&CK and Hunt
 
-### Install (local)
+| Tool | Purpose |
+|---|---|
+| `map_ttp` | Map free-form text to ATT&CK techniques |
+| `hunt_from_intel` | Generate hunts from intel text |
+| `hunt_for_techniques` | Generate hunts for specific techniques |
+| `atomic_tests_for_technique` | Return Atomic Red Team test IDs |
+
+### Detection Rules
+
+| Tool | Purpose |
+|---|---|
+| `generate_sigma_rule` | Build Sigma from a specific behavior |
+| `sigma_for_technique` | Return curated Sigma or `no_curated_rule` |
+| `sigma_bundle_for_techniques` | Bundle curated and missing Sigma coverage |
+| `validate_sigma_rule` | Offline Sigma structure validation |
+| `score_sigma` | Score specificity, coverage, and false-positive risk |
+| `score_technique_sigma` | Score a built-in curated Sigma rule |
+| `kql_for_technique` | Generate Microsoft Sentinel KQL |
+| `spl_for_technique` | Generate Splunk SPL |
+| `eql_for_technique` | Generate Elastic EQL |
+| `yara_for_technique` | Generate YARA for supported techniques |
+| `generate_yara` | Generate custom YARA from strings |
+
+### Intake, Storage, and Integrations
+
+| Tool | Purpose |
+|---|---|
+| `ingest_feed` | Ingest sources from YAML config |
+| `analyze_intel` | Combine text and source config into an analysis product |
+| `parse_stix` | Parse STIX 2.x bundle |
+| `stix_to_text` | Flatten STIX into pipeline-ready text |
+| `misp_pull` | Pull MISP events |
+| `misp_push_sigma` | Push Sigma to MISP |
+| `misp_create_event` | Create MISP event from pipeline output |
+| `search_intel_history` | Search persisted analysis history |
+| `search_ingested_docs` | Search ingested normalized documents |
+| `get_intel_by_id` | Retrieve stored analysis product |
+| `timeline` | Sort event notes/log lines chronologically |
+
+### Local ATT&CK Database
+
+| Tool | Purpose |
+|---|---|
+| `attack_get_technique` | Technique card, platforms, data sources, detection text |
+| `attack_get_threat_groups` | Groups known to use a technique |
+| `attack_get_techniques_by_group` | Techniques attributed to a group |
+| `attack_attribute_to_group` | Rank groups by observed technique overlap |
+| `attack_get_data_sources` | Map ATT&CK data sources to SIEM sources |
+| `attack_get_mitigations` | Return ATT&CK mitigations |
+
+## Installation
+
+### Local Development Install
 
 ```bash
 git clone https://github.com/harshthakur6293/threat-research-mcp
 cd threat-research-mcp
-pip install -e .
+python -m pip install -e ".[dev]"
 python -m threat_research_mcp
 ```
 
-### Configure Claude Desktop
+### Future Install Targets
+
+These are the intended public install paths once packaging is published:
+
+```bash
+pip install threat-research-mcp
+```
+
+```bash
+uvx threat-research-mcp
+```
+
+An npm wrapper is a reasonable future option for Node-first users, but the
+current implementation is Python/FastMCP.
+
+## MCP Client Configuration
+
+The server uses stdio transport, so it is client-agnostic. It should work with
+any MCP client that supports stdio tools.
+
+### Generic MCP Config
 
 ```json
 {
@@ -477,221 +364,214 @@ python -m threat_research_mcp
     "threat-research-mcp": {
       "command": "python",
       "args": ["-m", "threat_research_mcp"],
+      "cwd": "/path/to/threat-research-mcp",
       "env": {
-        "VIRUSTOTAL_API_KEY": "optional",
-        "MISP_URL": "https://misp.example.org",
-        "MISP_KEY": "your_automation_key"
+        "THREAT_MCP_OFFLINE": "true"
       }
     }
   }
 }
 ```
 
-### Docker (standard)
+Use the same shape in Claude Desktop, Cursor, Cline/Roo Code, VS Code MCP
+configurations, and other agentic MCP clients. Adjust `cwd` and `command` for
+your environment.
 
-```bash
-# Copy and edit env
-cp .env.example .env
+### Optional Multi-MCP Workflow
 
-docker compose up -d
-```
-
-### Docker (air-gapped SOC with Ollama)
-
-```bash
-# Pre-pull model into the Ollama volume before going offline
-docker compose -f docker-compose.ollama.yml run ollama ollama pull llama3.1:8b
-
-# Start the stack — no internet required
-docker compose -f docker-compose.ollama.yml up -d
-```
-
-### Environment Variables
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `VIRUSTOTAL_API_KEY` | Optional | IOC enrichment via VirusTotal API v3 |
-| `OTX_API_KEY` | Optional | IOC enrichment via AlienVault OTX |
-| `ABUSEIPDB_API_KEY` | Optional | IP reputation via AbuseIPDB |
-| `MISP_URL` | Optional | Base URL of your MISP instance |
-| `MISP_KEY` | Optional | MISP automation key (User → My Profile → Auth key) |
-| `MISP_VERIFY_SSL` | Optional | Set `false` for self-signed certs in lab environments |
-| `THREAT_MCP_OFFLINE` | Optional | `true` = skip all outbound API calls (air-gapped mode) |
-| `THREAT_RESEARCH_MCP_DB` | Optional | Path to SQLite DB for persisting intel history |
-
-URLhaus enrichment is free with no API key. All enrichment sources are optional.
-
----
-
-## Hunt Coverage
-
-The hypothesis engine ships with **28 ATT&CK techniques** across Windows, Linux, cloud, and macOS:
+This server can be used beside specialist MCPs:
 
 ```mermaid
-gantt
-    title Hunt Playbook Coverage by Log Source
-    dateFormat X
-    axisFormat %s techniques
+flowchart LR
+    Client["Agentic MCP Client<br/>Claude, Cursor, Cline, Copilot, ChatGPT-style clients"]
+    TR["threat-research-mcp<br/>intel -> hunts -> detections -> report"]
+    MITRE["mitre-attack-mcp<br/>technique, group, mitigation context"]
+    DET["security-detections-mcp<br/>existing community rules"]
+    SIEM["Splunk / Sentinel / Elastic<br/>deployment targets"]
 
-    section Windows
-    Sysmon Process Creation        : 0, 6
-    Sysmon Process Access (EID 10) : 0, 1
-    Sysmon Registry (EID 13)       : 0, 1
-    Sysmon File Events (EID 11)    : 0, 1
-    Sysmon CreateRemoteThread      : 0, 1
-    PowerShell Script Block        : 0, 2
-    Windows Security Events        : 0, 6
-    Windows System Events          : 0, 1
-
-    section Network
-    Web Proxy Logs                 : 0, 3
-    DNS Query Logs                 : 0, 2
-    Email Gateway                  : 0, 1
-    Web Server / WAF               : 0, 2
-    Firewall / Flow Logs           : 0, 1
-
-    section macOS
-    macOS Unified Log              : 0, 4
-    EDR macOS                      : 0, 8
+    Client --> TR
+    Client --> MITRE
+    Client --> DET
+    TR --> SIEM
+    MITRE --> TR
+    DET --> TR
 ```
 
----
-
-## Contributing Techniques (no Python required)
-
-Add new ATT&CK coverage by editing two YAML files — no Python knowledge needed.
-
-### `playbook/keywords.yaml` — add detection keywords
-
-```yaml
-# keyword (lowercase, word-boundary matched) → [technique_id, name, tactic]
-"living off the land":
-  - ["T1218", "Signed Binary Proxy Execution", "defense-evasion"]
-
-"mshta":
-  - ["T1218.005", "Mshta", "defense-evasion"]
-
-"wscript":
-  - ["T1059.005", "Visual Basic", "execution"]
+```json
+{
+  "mcpServers": {
+    "threat-research-mcp": {
+      "command": "python",
+      "args": ["-m", "threat_research_mcp"],
+      "cwd": "/path/to/threat-research-mcp"
+    },
+    "mitre-attack": {
+      "command": "npx",
+      "args": ["-y", "mitre-attack-mcp"]
+    },
+    "security-detections": {
+      "command": "npx",
+      "args": ["-y", "security-detections-mcp"]
+    }
+  }
+}
 ```
 
-> Word-boundary regex is applied automatically. `"tor"` will not match "authorization".
+In that setup, the agentic client should orchestrate:
 
-### `playbook/atomic_tests.yaml` — map Atomic Red Team test IDs
-
-```yaml
-T1059.001:
-  - T1059.001-1   # Mimikatz - Credential Dumping via PowerShell
-  - T1059.001-2   # Run BloodHound from Local Disk
-
-T1003.001:
-  - T1003.001-1   # Dump LSASS via ProcDump
-  - T1003.001-2   # Dump LSASS via comsvcs.dll
+```text
+1. threat-research-mcp: analyze report
+2. mitre-attack-mcp: enrich technique context and actor usage
+3. security-detections-mcp: search existing rules by technique ID
+4. threat-research-mcp: generate detections only for gaps
+5. threat-research-mcp: generate final report and Navigator layer
 ```
 
-Open a pull request with new keywords or test mappings. The CI will catch any formatting issues.
+MCP servers usually do not call each other directly. The client coordinates the
+workflow.
 
----
+## Operator Profile
 
-## ATT&CK Keyword Coverage — 150+ phrases across 14 tactics
+Copy and edit the example profile:
 
-<details>
-<summary>Click to expand the full keyword index</summary>
+```bash
+cp operator.yaml.example operator.yaml
+```
 
-| Tactic | Example Keywords |
-|---|---|
-| **Execution** | powershell, encoded command, wmi, vbscript, msiexec, rundll32, regsvr32, cscript, osascript, applescript, zsh -c, curl pipe bash |
-| **Persistence** | run key, scheduled task, startup folder, web shell, crontab, systemd, launch agent, launchd, launch daemon |
-| **Privilege Escalation** | uac bypass, token impersonation, pass-the-hash, sudo, kerberoasting, tcc manipulation, tcc database |
-| **Defense Evasion** | obfuscation, process injection, timestomp, lolbins, masquerading, reflective dll, gatekeeper, quarantine attribute, fileless, in-memory execution |
-| **Credential Access** | mimikatz, lsass, ntds.dit, brute force, password spray, keylogging, keychain, security find-generic-password, session hijack, session cookie |
-| **Discovery** | nmap, bloodhound, net commands, systeminfo, domain trust |
-| **Lateral Movement** | psexec, smb, rdp, ssh tunnel, wmi exec |
-| **Collection** | zip archive, archive collected, screen capture |
-| **C2** | dns tunneling, domain fronting, cobalt strike, sliver, tor network, telegram bot, telegram bot api |
-| **Exfiltration** | rclone, mega, ftp, dns exfil, telegram bot api |
-| **Initial Access** | phishing, spearphishing link, drive-by, supply chain, valid accounts, sql injection, remote code execution, linkedin lure, fake job, ledger live, crypto wallet |
-| **Impact** | ransomware, wiper, defacement, ddos |
+The profile tells the server what your SOC actually has:
 
-</details>
+- primary and secondary SIEM
+- available log sources
+- operating systems and cloud platforms
+- confidence threshold
+- campaign store directory
+- optional integrations
 
----
+Without `operator.yaml`, safe defaults are used.
+
+## Example Workflow
+
+```text
+User:
+Analyze this Sapphire Sleet macOS report and produce a detection package.
+
+Agent:
+1. Calls run_pipeline_tool(text=<report>, log_sources="edr_macos,proxy_logs")
+2. Reviews high-confidence ATT&CK techniques and evidence
+3. Calls sigma_bundle_for_techniques(...)
+4. Calls kql_for_technique / spl_for_technique for relevant SIEM outputs
+5. Calls navigator_layer(...)
+6. Calls generate_threat_report(...)
+7. Calls campaign_update(...)
+```
+
+Outputs:
+
+```text
+pipeline JSON
+interactive HTML report
+ATT&CK Navigator layer
+Sigma bundle
+IOC CSV
+campaign JSON state
+```
+
+## Testing Local Threat Reports
+
+Use current public threat reports as regression/evaluation cases. Save report
+text under `evals/reports/` and compare extracted IOCs, techniques, hunts, and
+generated report output.
+
+Good local test cases:
+
+- PhantomCore / TrueConf exploitation
+- fake VS Code extensions
+- fake CAPTCHA / Keitaro scam infrastructure
+- UNC6692 helpdesk impersonation
+- China-linked GopherWhisper campaign
+
+Suggested structure:
+
+```text
+evals/reports/
+  phantomcore_trueconf.txt
+  fake_vscode_extensions.txt
+  fake_captcha_keitaro.txt
+  unc6692_helpdesk.txt
+  gopherwhisper.txt
+
+evals/expected/
+  phantomcore_trueconf.json
+  fake_vscode_extensions.json
+  fake_captcha_keitaro.json
+  unc6692_helpdesk.json
+  gopherwhisper.json
+```
 
 ## Development
 
+Install development dependencies:
+
 ```bash
-# Install dev deps
-pip install -e ".[dev]"
-
-# Run tests (must stay ≥ 65% coverage)
-pytest tests/ --cov=src/threat_research_mcp -q
-
-# Lint (zero warnings policy)
-ruff check src/
-
-# Format
-ruff format src/
-
-# Check a specific new test class
-pytest tests/test_new_tools_v2.py -v
+python -m pip install -e ".[dev]"
 ```
 
-### CI Checks
+Run the CI-equivalent checks locally:
 
-Every push runs four GitHub Actions workflows:
-
-| Workflow | What it checks |
-|---|---|
-| `ci` | ruff lint + pytest (coverage gate ≥ 65%) |
-| `build` | package install + import smoke test |
-| `security` | pip-audit CVE scan |
-| `codeql` | GitHub CodeQL static analysis |
-
----
-
-## Tested With
-
-| AI Assistant | Version | Notes |
-|---|---|---|
-| Claude | Sonnet 4.6 | Primary target — full MCP tool-calling support |
-| GPT-4o | 2024-11 | Via OpenAI Responses API with MCP support |
-| Ollama | llama3.1:8b | Air-gapped mode via `docker-compose.ollama.yml` |
-
----
-
-## Project Structure
-
-```
-threat-research-mcp/
-├── src/threat_research_mcp/
-│   ├── server.py                        # FastMCP server — ~33 registered tools
-│   ├── tools/
-│   │   ├── extract_iocs.py              # Regex IOC extraction (macOS extension blocklist)
-│   │   ├── map_attack.py                # ATT&CK keyword index (150+ keywords, word-boundary)
-│   │   ├── generate_hunt_hypothesis.py  # Hunt hypothesis + SIEM query engine (28 techniques)
-│   │   ├── generate_sigma.py            # Sigma rule generation (per-technique templates)
-│   │   ├── parse_stix.py                # STIX 2.x bundle parser (no external deps)
-│   │   ├── navigator_export.py          # ATT&CK Navigator 4.5 layer export
-│   │   ├── score_sigma.py               # Sigma quality scorer + Atomic Red Team mapping
-│   │   ├── misp_bridge.py               # MISP pull / push / create integration
-│   │   ├── validate_sigma.py            # Sigma YAML validation (offline)
-│   │   └── detection_gap_analysis.py    # Coverage gap calculator
-│   ├── enrichment/enrich.py             # VT · OTX · AbuseIPDB · URLhaus API calls
-│   ├── ingestion/adapters/              # TAXII 2.1 · RSS · HTML · local file adapters
-│   ├── detection/generators/            # SigmaRule · KQL · SPL · EQL · YARA templates
-│   └── storage/sqlite.py                # SQLite intel history
-│
-├── playbook/
-│   ├── keywords.yaml                    # Community-editable keyword → ATT&CK index
-│   └── atomic_tests.yaml                # Atomic Red Team test IDs per technique
-│
-├── Dockerfile                           # Standard container image
-├── docker-compose.yml                   # Standard deployment
-└── docker-compose.ollama.yml            # Air-gapped SOC: MCP + Ollama sidecar
+```bash
+python -m ruff check .
+python -m ruff format --check .
+python -m pytest -q --maxfail=1 --cov=src/threat_research_mcp --cov-fail-under=65
+python -m bandit -c pyproject.toml -r src
+python -m pip_audit --cache-dir .pip-audit-cache
 ```
 
----
+`make ci` runs the same checks on systems with `make` installed.
+
+Current local result:
+
+```text
+118 passed, 5 skipped
+coverage: 65.30%
+bandit: no issues
+pip-audit: no known vulnerabilities
+```
+
+## Repository Layout
+
+```text
+src/threat_research_mcp/
+  server.py                         FastMCP tool registration
+  cli.py                            package entrypoint
+  tools/
+    run_pipeline.py                 end-to-end pipeline
+    extract_iocs.py                 context-aware IOC extraction
+    map_attack.py                   ATT&CK mapping with confidence
+    generate_html_report.py         browser-ready report generator
+    generate_sigma.py               curated Sigma rule wrapper
+    generate_ioc_sigma.py           IOC blocklist Sigma bundle
+    generate_detections.py          KQL/SPL/EQL/YARA helpers
+    navigator_export.py             ATT&CK Navigator layer export
+    score_sigma.py                  Sigma quality scoring
+    attack_lookup.py                optional local ATT&CK SQLite lookup
+    campaign_tracker.py             JSON campaign state
+    misp_bridge.py                  MISP integration
+  ingestion/                        local, HTML, RSS, TAXII, STIX intake
+  detection/                        generators and validators
+  storage/                          SQLite persistence
+
+playbook/
+  keywords.yaml                     keyword mappings
+  confidence_weights.yaml           ATT&CK confidence model
+  ioc_context_patterns.yaml         IOC scoring patterns
+  atomic_tests.yaml                 Atomic Red Team mapping
+  siems/                            SIEM field/query profiles
+
+demo/
+  sapphire_sleet_*                  demo input and generated outputs
+```
 
 ## License
 
-MIT — contributions welcome. Open issues, submit PRs, or add new YAML playbook entries.
+MIT. Contributions are welcome, especially additional report evals, ATT&CK
+keyword mappings, SIEM profiles, and reviewed detection templates.
