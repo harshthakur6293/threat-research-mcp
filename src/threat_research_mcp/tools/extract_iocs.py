@@ -53,41 +53,41 @@ _MACOS_BUNDLE = re.compile(
 # File extensions that look like TLDs
 _FILE_EXTENSIONS: frozenset[str] = frozenset(
     {
-        "sh",
+        # Source code — NOT real ccTLDs (py, go, rb, etc. are NOT ccTLDs)
         "py",
         "pyc",
         "pyd",
         "pyw",
-        "rb",
-        "go",
-        "rs",
+        "rb",  # not a real TLD
+        "go",  # not a real TLD
         "c",
         "cpp",
         "h",
         "js",
-        "ts",
         "jsx",
+        "ts",
         "tsx",
         "php",
-        "pl",
         "lua",
-        "r",
+        "r",  # not a real TLD
         "jl",
         "swift",
+        # Binaries — none are real ccTLDs
         "exe",
         "dll",
-        "so",
         "dylib",
         "bin",
         "elf",
         "sys",
         "drv",
+        # Scripts
         "bat",
         "cmd",
         "ps1",
         "psm1",
         "vbs",
         "wsf",
+        # Data
         "json",
         "yaml",
         "yml",
@@ -98,11 +98,11 @@ _FILE_EXTENSIONS: frozenset[str] = frozenset(
         "conf",
         "env",
         "txt",
-        "log",
         "csv",
         "tsv",
         "md",
         "rst",
+        # Archives
         "tar",
         "gz",
         "bz2",
@@ -111,9 +111,9 @@ _FILE_EXTENSIONS: frozenset[str] = frozenset(
         "rar",
         "7z",
         "zst",
+        # Packages
         "deb",
         "rpm",
-        "pkg",
         "apk",
         "dmg",
         "msi",
@@ -122,21 +122,26 @@ _FILE_EXTENSIONS: frozenset[str] = frozenset(
         "war",
         "jar",
         "class",
+        # Disk images
         "img",
         "iso",
         "vmdk",
         "ova",
+        # Misc
         "pth",
         "lock",
         "sum",
         "mod",
+        # macOS bundles — .app is a valid gTLD but macOS app bundles dominate threat reports
         "scpt",
-        "app",
         "plist",
         "kext",
         "framework",
         "bundle",
-        "local",
+        "app",
+        # Note: "sh" (.sh = Saint Helena), "pl" (.pl = Poland), "so" (.so = Somalia),
+        # "rs" (.rs = Serbia) are real ccTLDs used by threat actors and are intentionally
+        # NOT in this list so they can be extracted as IOCs.
     }
 )
 

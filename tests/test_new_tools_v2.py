@@ -301,7 +301,8 @@ class TestMacOSExtensionBlocklist:
         from threat_research_mcp.tools.extract_iocs import extract_iocs_from_text
 
         result = extract_iocs_from_text("The application systemupdate.app was installed.")
-        assert all(not d.endswith(".app") for d in result["domains"])
+        domain_values = [d["value"] if isinstance(d, dict) else d for d in result["domains"]]
+        assert all(not d.endswith(".app") for d in domain_values)
 
     def test_plist_not_extracted_as_domain(self):
         from threat_research_mcp.tools.extract_iocs import extract_iocs_from_text

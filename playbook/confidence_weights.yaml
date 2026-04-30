@@ -6,9 +6,9 @@
 # Techniques below `suppress_threshold` are filtered from output by default.
 # Claude / analysts can lower this threshold to see low-confidence matches.
 
-suppress_threshold: 0.45   # techniques below this score are suppressed
-warn_threshold:     0.65   # techniques below this shown with ⚠ warning
-high_threshold:     0.85   # techniques above this shown as HIGH confidence
+suppress_threshold: 0.35   # techniques below this score are suppressed
+warn_threshold:     0.55   # techniques below this shown with ⚠ warning
+high_threshold:     0.75   # techniques above this shown as HIGH confidence
 
 # ── Dimension weights ─────────────────────────────────────────────────────────
 # Must sum to 1.0
