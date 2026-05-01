@@ -337,6 +337,7 @@ if FastMCP:
         sources_config: str = "",
         log_sources: str = "",
         enrich: bool = False,
+        source_quality: str = "",
     ) -> str:
         """Run the complete threat research pipeline in a single call.
 
@@ -353,6 +354,11 @@ if FastMCP:
                          Example: "sysmon_process,script_block_logging,dns_logs"
             enrich: Set True to query VirusTotal / OTX / AbuseIPDB / URLhaus
                     for the top extracted IOCs (default False — avoids surprise API calls).
+            source_quality: Intelligence source type for confidence scoring.
+                            One of: cisa_advisory, ncsc_advisory, isac_advisory,
+                            vendor_blog, researcher_blog, open_source_report,
+                            pastebin_forum. Leave empty to auto-detect from URLs
+                            in the text (Microsoft, Mandiant, CISA domains recognized).
 
         Returns: Comprehensive JSON with all pipeline stages and a summary.
         """
@@ -361,6 +367,7 @@ if FastMCP:
             sources_config=sources_config,
             log_sources=log_sources,
             enrich=enrich,
+            source_quality=source_quality,
         )
 
     @mcp.tool()

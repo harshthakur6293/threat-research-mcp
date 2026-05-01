@@ -45,6 +45,12 @@ _DOMAIN = re.compile(
 )
 _URL = re.compile(r'\bhttps?://[^\s<>"{}|\\^`\[\]]+', re.IGNORECASE)
 
+# Defanged indicators are common in public threat reports and should be
+# normalized before regex extraction. Keep this conservative so normal prose is
+# not unexpectedly rewritten.
+_DEFANGED_DOT = re.compile(r"\s*(?:\[\.\]|\(\.\)|\{\.\})\s*", re.IGNORECASE)
+_DEFANGED_HTTP = re.compile(r"\bhxxps?://", re.IGNORECASE)
+
 # macOS bundle identifier: 3+ label reverse-DNS (com.apple.foo, org.chromium.bar)
 _MACOS_BUNDLE = re.compile(
     r"\b(?:com|org|io|net|edu|gov)\.[a-zA-Z0-9\-]+(?:\.[a-zA-Z0-9\-]+){1,}\b"
@@ -272,6 +278,18 @@ for _category in ("malicious", "infrastructure", "victim", "researcher", "exampl
 # ── Sentence extraction ───────────────────────────────────────────────────────
 
 
+def _refang_text(text: str) -> str:
+    """Normalize common defanged IOC forms used in threat reports.
+
+    Examples:
+      - example[.]com -> example.com
+      - 62.72.21[.]10 -> 62.72.21.10
+      - hxxps://evil[.]example/path -> https://evil.example/path
+    """
+    text = _DEFANGED_HTTP.sub(lambda m: m.group(0).lower().replace("hxxp", "http"), text)
+    return _DEFANGED_DOT.sub(".", text)
+
+
 def _sentences(text: str) -> list[str]:
     """Split text into sentences (approximate — good enough for context windows)."""
     return re.split(r"(?<=[.!?])\s+|\n{1,}", text)
@@ -382,6 +400,8 @@ def extract_iocs_from_text(text: str, source_quality: str = "unknown") -> dict:
             "filtered_fps": [],
             "notes": "empty input",
         }
+
+    text = _refang_text(text)
 
     threshold = _include_threshold()
     ips: list[dict] = []

@@ -12,7 +12,28 @@ All steps are optional and gracefully degrade when not configured:
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
+
+# Ordered by specificity — first match wins
+_SOURCE_QUALITY_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"cisa\.gov", re.I), "cisa_advisory"),
+    (re.compile(r"ncsc\.(gov\.uk|nl|no|fi|ie)", re.I), "ncsc_advisory"),
+    (re.compile(r"(msrc|microsoft)\.com", re.I), "vendor_blog"),
+    (re.compile(r"(cloud\.google|mandiant|chronicle)\.com", re.I), "vendor_blog"),
+    (re.compile(r"(crowdstrike|sentinelone|paloaltonetworks|unit42)\.com", re.I), "vendor_blog"),
+    (re.compile(r"(securelist|kaspersky)\.com", re.I), "vendor_blog"),
+    (re.compile(r"(recordedfuture|threatfabric|proofpoint)\.com", re.I), "vendor_blog"),
+    (re.compile(r"(isac|information-sharing|h-isac|fs-isac)\.org", re.I), "isac_advisory"),
+]
+
+
+def _detect_source_quality(text: str) -> str:
+    """Infer source quality from URLs or attribution phrases in the text."""
+    for pattern, quality in _SOURCE_QUALITY_PATTERNS:
+        if pattern.search(text):
+            return quality
+    return "unknown"
 
 
 def run_pipeline(
@@ -20,6 +41,7 @@ def run_pipeline(
     sources_config: str = "",
     log_sources: str = "",
     enrich: bool = False,
+    source_quality: str = "",
 ) -> str:
     """Run the full threat research pipeline in a single call.
 
@@ -27,7 +49,7 @@ def run_pipeline(
       1. Feed ingestion (if sources_config path is provided)
       2. IOC extraction from combined text
       3. IOC enrichment against VT / OTX / AbuseIPDB / URLhaus (if enrich=True)
-      4. ATT&CK technique mapping
+      4. ATT&CK technique mapping (with IOC corroboration and source quality)
       5. Hunt hypothesis generation (filtered to log_sources if provided)
       6. Sigma rule bundle for detected techniques
 
@@ -42,6 +64,11 @@ def run_pipeline(
         enrich: Set True to query VirusTotal, OTX, AbuseIPDB, URLhaus for
                 the top IOCs extracted. Requires API keys in environment.
                 Default False to avoid unexpected external API calls.
+        source_quality: Intelligence source type for confidence scoring.
+                        One of: cisa_advisory, ncsc_advisory, isac_advisory,
+                        vendor_blog, researcher_blog, open_source_report,
+                        pastebin_forum. Leave empty to auto-detect from URLs
+                        in the text (Microsoft/Mandiant/CISA domains recognized).
 
     Returns: Comprehensive JSON with all pipeline stages and a summary.
     """
@@ -51,6 +78,9 @@ def run_pipeline(
     }
 
     combined_text = text.strip()
+
+    # Resolve source quality — explicit param wins, otherwise auto-detect
+    resolved_quality = source_quality.strip() or _detect_source_quality(combined_text)
 
     # ── Stage 1: Feed ingestion ───────────────────────────────────────────────
     if sources_config.strip():
@@ -115,8 +145,9 @@ def run_pipeline(
     # ── Stage 4: ATT&CK TTP mapping ──────────────────────────────────────────
     from threat_research_mcp.tools.map_attack import map_attack
 
-    ttp_raw = json.loads(map_attack(combined_text))
+    ttp_raw = json.loads(map_attack(combined_text, iocs=iocs_raw, source_quality=resolved_quality))
     result["techniques"] = ttp_raw
+    result["source_quality_used"] = resolved_quality
     result["pipeline_stages"].append("ttp_mapping")
 
     technique_ids = [t["id"] for t in ttp_raw.get("techniques", [])]
@@ -168,6 +199,7 @@ def run_pipeline(
         "sigma_rules_generated": sigma_count,
         "enrichment_performed": enrich and bool(all_iocs),
         "log_source_filter": log_sources or "all",
+        "source_quality": resolved_quality,
         "stages_completed": result["pipeline_stages"],
         "next_steps": _next_steps(technique_ids, ioc_total, enrich, sigma_count),
     }

@@ -21,10 +21,10 @@ are returned in a suppressed list rather than the main techniques list.
 from __future__ import annotations
 
 import json
-import os
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Tuple
+
+from threat_research_mcp.utils.paths import playbook_file
 
 try:
     import yaml as _yaml
@@ -52,10 +52,7 @@ def _load_keyword_index() -> Dict[str, Tuple[str, str, str]]:
     tool degrades gracefully without crashing on a fresh install before the
     playbook directory is available.
     """
-    candidates = [
-        Path(__file__).parent.parent.parent.parent / "playbook" / "keywords.yaml",
-        Path(os.getcwd()) / "playbook" / "keywords.yaml",
-    ]
+    candidates = [p for p in [playbook_file("keywords.yaml")] if p is not None]
     if _YAML_OK:
         for p in candidates:
             if p.exists():
@@ -98,10 +95,7 @@ _PATTERNS: Dict[str, re.Pattern] = {kw: _compile(kw) for kw in _INDEX}
 
 
 def _load_confidence_weights() -> Dict[str, Any]:
-    candidates = [
-        Path(__file__).parent.parent.parent.parent / "playbook" / "confidence_weights.yaml",
-        Path(os.getcwd()) / "playbook" / "confidence_weights.yaml",
-    ]
+    candidates = [p for p in [playbook_file("confidence_weights.yaml")] if p is not None]
     if _YAML_OK:
         for p in candidates:
             if p.exists():
