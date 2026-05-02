@@ -1,0 +1,12 @@
+Threat actors used PowerShell -EncodedCommand to execute a base64-encoded payload that
+downloaded a second-stage implant from 45.33.32.156 using Net.WebClient.DownloadString.
+
+The C2 beacon contacted evil-c2-domain.ru every 300 seconds with a custom User-Agent.
+MD5 hash of the implant: 5d41402abc4b2a76b9719d911017c592
+
+Persistence was established via a scheduled task (schtasks /create /sc minute /tr
+"powershell.exe -w hidden -enc <payload>").
+
+T1059.001 PowerShell execution was confirmed via event ID 4104 (Script Block Logging).
+T1053.005 Scheduled Task persistence was used for boot survival.
+T1071.001 C2 over HTTP was observed on port 443 with beaconing at fixed intervals.
