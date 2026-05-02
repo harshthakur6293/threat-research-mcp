@@ -1,0 +1,53 @@
+id: qradar
+name: IBM QRadar (AQL)
+version: "2024-Q4"
+description: >
+  Field mappings for IBM QRadar SIEM using Ariel Query Language (AQL).
+  Field names follow QRadar's normalized event properties.
+
+tables:
+  process_events:
+    log_source_type: Microsoft Windows Security Event Log
+    event_id: "4688"
+    fields:
+      timestamp:       starttime
+      host:            sourceip
+      user:            username
+      process_name:    "NewProcessName"
+      process_cmdline: "CommandLine"
+      parent_name:     "ParentProcessName"
+    base_query: "SELECT * FROM events WHERE LOGSOURCETYPENAME(devicetype) = 'Microsoft Windows Security Event Log' AND eventid = '4688'"
+
+  network_events:
+    log_source_type: Network Activity
+    fields:
+      timestamp:    starttime
+      src_ip:       sourceip
+      dst_ip:       destinationip
+      dst_port:     destinationport
+      src_port:     sourceport
+      protocol:     protocolname
+      bytes_out:    magnitude
+    base_query: "SELECT * FROM flows"
+
+  auth_events:
+    log_source_type: Microsoft Windows Security Event Log
+    event_id: "4624"
+    fields:
+      timestamp:    starttime
+      host:         sourceip
+      user:         username
+      logon_type:   "LogonType"
+      src_ip:       sourceip
+    base_query: "SELECT * FROM events WHERE LOGSOURCETYPENAME(devicetype) = 'Microsoft Windows Security Event Log' AND eventid = '4624'"
+
+syntax:
+  single_value:   "{field} = '{value}'"
+  not_equal:      "{field} != '{value}'"
+  contains:       "{field} ILIKE '%{value}%'"
+  not_contains:   "NOT {field} ILIKE '%{value}%'"
+  multi_value_eq: "{field} IN ('{v1}', '{v2}')"
+  time_window:    "START '{start}' STOP '{stop}'"
+  aggregate:      "GROUP BY {group_by}"
+  sort_desc:      "ORDER BY {field} DESC"
+  limit:          "LIMIT {n}"

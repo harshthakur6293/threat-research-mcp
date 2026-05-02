@@ -1,0 +1,142 @@
+# Confidence Scoring Weights for ATT&CK Technique Mapping
+#
+# confidence(technique) is computed as a weighted sum across four dimensions.
+# Each dimension score is in [0.0, 1.0]. Final score is also in [0.0, 1.0].
+#
+# Techniques below `suppress_threshold` are filtered from output by default.
+# Claude / analysts can lower this threshold to see low-confidence matches.
+
+suppress_threshold: 0.35   # techniques below this score are suppressed
+warn_threshold:     0.55   # techniques below this shown with ⚠ warning
+high_threshold:     0.75   # techniques above this shown as HIGH confidence
+
+# ── Dimension weights ─────────────────────────────────────────────────────────
+# Must sum to 1.0
+dimensions:
+  keyword_specificity:    0.35   # how specific/unique the keyword is to this technique
+  evidence_diversity:     0.25   # how many independent signals fired
+  ioc_corroboration:      0.20   # whether extracted IOCs align with the technique
+  source_quality:         0.20   # quality/authority of the intelligence source
+
+# ── Keyword specificity lookup ────────────────────────────────────────────────
+# Specificity score per keyword group.
+# Higher = more diagnostic of the technique.
+# Assigned manually based on how often each keyword appears in benign contexts.
+keyword_specificity:
+  # Ultra-specific — near 1:1 with the technique
+  ultra_high:               # score: 0.95
+    - mimikatz
+    - sekurlsa
+    - lsadump
+    - procdump
+    - kerberoasting
+    - as-rep.roasting
+    - bloodhound
+    - sharphound
+    - cobalt.strike
+    - sliver.c2
+    - dns.tunneling
+    - domain.fronting
+    - reflective.dll
+    - process.hollowing
+    - timestomp
+    - dependency.confusion
+    - typosquatting
+    - osascript
+    - launchctl
+    - tcc.db
+    - tcc.database
+    - telegram.bot.api
+
+  # High specificity — rarely benign
+  high:                     # score: 0.80
+    - powershell.*-enc
+    - invoke-expression
+    - iex\(
+    - encodedcommand
+    - web.shell
+    - webshell
+    - pass.the.hash
+    - pass.the.ticket
+    - credential.dump
+    - uac.bypass
+    - dll.injection
+    - malicious.package
+    - package.poisoning
+    - supply.chain
+    - github.actions.*malicious
+    - ci/cd.*compromise
+    - bitcoin.wallet
+    - crypto.wallet
+
+  # Medium specificity — common in threat intel but also in benign docs
+  medium:                   # score: 0.60
+    - powershell
+    - scheduled.task
+    - schtasks
+    - run.key
+    - nmap
+    - port.scan
+    - phishing
+    - spearphish
+    - malicious.attachment
+    - lateral.movement
+    - privilege.escalation
+    - ransomware
+    - backdoor
+    - beacon
+    - exfiltrat
+    - obfuscat
+    - base64
+    - persistence
+    - c2
+    - command.and.control
+
+  # Low specificity — appear in many benign contexts
+  low:                      # score: 0.30
+    - remote
+    - ssh
+    - rdp
+    - smb
+    - python
+    - javascript
+    - bash
+    - script
+    - execute
+    - download
+    - upload
+    - network
+    - proxy
+    - vpn
+    - encrypt
+    - compress
+
+# ── Evidence diversity bonuses ────────────────────────────────────────────────
+# Additional score based on how many independent keywords matched
+evidence_diversity_scores:
+  "1":   0.30   # single keyword — risky, could be coincidence
+  "2":   0.55   # two independent signals
+  "3":   0.75   # three — significant confidence
+  "4":   0.85   # four or more — high confidence
+  "5+":  0.95   # five+ — very high confidence
+  named: 1.00   # technique explicitly named in text (e.g. "T1059.001")
+
+# ── IOC corroboration bonuses ─────────────────────────────────────────────────
+# If extracted IOCs align with the technique, add these bonuses
+ioc_corroboration:
+  network_ioc_for_c2_technique:   0.30   # IP/domain found + C2 technique matched
+  file_hash_for_execution:        0.25   # Hash found + execution technique matched
+  file_hash_for_any_technique:    0.15   # Hash found, generic bonus
+  no_ioc_corroboration:           0.00   # no bonus
+
+# ── Source quality scores ─────────────────────────────────────────────────────
+# Analysts can pass source_type to pipeline; default is "unknown"
+source_quality:
+  cisa_advisory:       1.00
+  ncsc_advisory:       1.00
+  isac_advisory:       0.90
+  vendor_blog:         0.75   # Microsoft, CrowdStrike, Mandiant, etc.
+  researcher_blog:     0.65
+  open_source_report:  0.60
+  pastebin_forum:      0.45
+  unknown:             0.55   # default

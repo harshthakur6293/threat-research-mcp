@@ -1,0 +1,113 @@
+id: sentinel
+name: Microsoft Sentinel (KQL)
+version: "2024-Q4"
+description: >
+  Field mappings for Microsoft Sentinel workspaces using the Unified Security Operations
+  Platform. Tables reflect the standard Defender XDR + Log Analytics schema.
+
+tables:
+  process_events:
+    table: DeviceProcessEvents
+    fields:
+      timestamp:       TimeGenerated
+      host:            DeviceName
+      user:            AccountName
+      process_name:    FileName
+      process_cmdline: ProcessCommandLine
+      process_id:      ProcessId
+      process_hash:    SHA256
+      parent_name:     InitiatingProcessFileName
+      parent_cmdline:  InitiatingProcessCommandLine
+      parent_id:       InitiatingProcessId
+    filter_template: "| where {field} {op} {value}"
+    time_filter:     "| where TimeGenerated > ago({window})"
+
+  network_events:
+    table: DeviceNetworkEvents
+    fields:
+      timestamp:    TimeGenerated
+      host:         DeviceName
+      user:         InitiatingProcessAccountName
+      dst_ip:       RemoteIP
+      dst_domain:   RemoteUrl
+      dst_port:     RemotePort
+      src_ip:       LocalIP
+      src_port:     LocalPort
+      protocol:     Protocol
+      process_name: InitiatingProcessFileName
+      direction:    Direction
+    filter_template: "| where {field} {op} {value}"
+
+  dns_events:
+    table: DnsEvents
+    fields:
+      timestamp:    TimeGenerated
+      host:         Computer
+      src_ip:       ClientIP
+      query:        Name
+      query_type:   QueryType
+      response:     IPAddresses
+    filter_template: "| where {field} {op} {value}"
+
+  file_events:
+    table: DeviceFileEvents
+    fields:
+      timestamp:    TimeGenerated
+      host:         DeviceName
+      user:         RequestAccountName
+      file_name:    FileName
+      file_path:    FolderPath
+      file_hash:    SHA256
+      process_name: InitiatingProcessFileName
+      action:       ActionType
+    filter_template: "| where {field} {op} {value}"
+
+  security_events:
+    table: SecurityEvent
+    fields:
+      timestamp:    TimeGenerated
+      host:         Computer
+      user:         Account
+      event_id:     EventID
+      logon_type:   LogonType
+      src_ip:       IpAddress
+      process_name: ProcessName
+    filter_template: "| where {field} {op} {value}"
+
+  email_events:
+    table: EmailEvents
+    fields:
+      timestamp:   TimeGenerated
+      sender:      SenderFromAddress
+      recipient:   RecipientEmailAddress
+      subject:     Subject
+      delivery:    DeliveryAction
+    filter_template: "| where {field} {op} {value}"
+
+  github_audit:
+    table: GitHubAuditData_CL
+    fields:
+      timestamp:   TimeGenerated
+      actor:       actor_s
+      action:      action_s
+      repo:        repo_s
+      outcome:     outcome_s
+      src_ip:      actorIp_s
+    filter_template: "| where {field} {op} {value}"
+
+syntax:
+  single_value:   "{field} == \"{value}\""
+  not_equal:      "{field} != \"{value}\""
+  contains:       "{field} has \"{value}\""
+  not_contains:   "not {field} has \"{value}\""
+  starts_with:    "{field} startswith \"{value}\""
+  ends_with:      "{field} endswith \"{value}\""
+  multi_value_eq: "{field} in ({values})"
+  multi_contains: "{field} has_any ({values})"
+  regex:          "{field} matches regex \"{value}\""
+  time_window:    "| where TimeGenerated > ago({window})"
+  aggregate:      "| summarize {func}({field}) by {group_by}"
+  join:           "| join kind={join_type} ({subquery}) on {key}"
+  sort_desc:      "| order by {field} desc"
+  project:        "| project {fields}"
+  limit:          "| take {n}"
