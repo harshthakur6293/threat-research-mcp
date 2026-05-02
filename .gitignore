@@ -58,6 +58,10 @@ data/db/*.sqlite
 data/db/*.sqlite-*
 *.log
 
+# Large ATT&CK data files — download via scripts/download_attack_stix.py
+playbook/enterprise-attack.json
+playbook/attack.db
+
 # Local CI/CD
 .env.local
 .secrets
