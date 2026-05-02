@@ -1,0 +1,110 @@
+id: elastic
+name: Elastic SIEM / Elasticsearch (EQL + KQL)
+version: "2024-Q4"
+description: >
+  Field mappings using Elastic Common Schema (ECS) 8.x.
+  Applies to Elastic SIEM, Kibana Security, and Elastic EDR (Endgame/Elastic Agent).
+
+tables:
+  process_events:
+    index: "logs-*,winlogbeat-*"
+    event_category: process
+    fields:
+      timestamp:       "@timestamp"
+      host:            host.name
+      user:            user.name
+      process_name:    process.name
+      process_cmdline: process.command_line
+      process_id:      process.pid
+      process_hash:    process.hash.sha256
+      parent_name:     process.parent.name
+      parent_cmdline:  process.parent.command_line
+      parent_id:       process.parent.pid
+    eql_base:  "process where "
+    kql_base:  "event.category: process"
+
+  network_events:
+    index: "logs-*,packetbeat-*"
+    event_category: network
+    fields:
+      timestamp:    "@timestamp"
+      host:         host.name
+      user:         user.name
+      dst_ip:       destination.ip
+      dst_domain:   destination.domain
+      dst_port:     destination.port
+      src_ip:       source.ip
+      src_port:     source.port
+      protocol:     network.protocol
+      process_name: process.name
+      direction:    network.direction
+    eql_base: "network where "
+    kql_base: "event.category: network"
+
+  dns_events:
+    index: "logs-*,packetbeat-*"
+    event_category: dns
+    fields:
+      timestamp:    "@timestamp"
+      host:         host.name
+      src_ip:       source.ip
+      query:        dns.question.name
+      query_type:   dns.question.type
+      response_ip:  dns.resolved_ip
+    eql_base: "network where dns.question.name != null"
+    kql_base: "dns.question.name: *"
+
+  file_events:
+    index: "logs-*"
+    event_category: file
+    fields:
+      timestamp:    "@timestamp"
+      host:         host.name
+      user:         user.name
+      file_name:    file.name
+      file_path:    file.path
+      file_hash:    file.hash.sha256
+      process_name: process.name
+      action:       event.action
+    eql_base: "file where "
+    kql_base: "event.category: file"
+
+  registry_events:
+    index: "logs-*,winlogbeat-*"
+    event_category: registry
+    fields:
+      timestamp:    "@timestamp"
+      host:         host.name
+      reg_key:      registry.path
+      reg_value:    registry.value
+      process_name: process.name
+    eql_base: "registry where "
+    kql_base: "event.category: registry"
+
+  authentication_events:
+    index: "logs-*,winlogbeat-*"
+    event_category: authentication
+    fields:
+      timestamp:    "@timestamp"
+      host:         host.name
+      user:         user.name
+      src_ip:       source.ip
+      outcome:      event.outcome
+      logon_type:   winlog.event_data.LogonType
+    eql_base: "authentication where "
+    kql_base: "event.category: authentication"
+
+syntax:
+  single_value:   "{field}: \"{value}\""
+  not_equal:      "NOT {field}: \"{value}\""
+  contains:       "{field}: *{value}*"
+  not_contains:   "NOT {field}: *{value}*"
+  starts_with:    "{field}: {value}*"
+  ends_with:      "{field}: *{value}"
+  multi_value_eq: "{field}: ({values})"
+  multi_contains: "{field}: ({v1} OR {v2})"
+  regex:          "{field}: /{value}/"
+  eql_sequence:   "sequence by {key} with maxspan={window}\n  [{condition1}]\n  [{condition2}]"
+  time_window:    "@timestamp >= now-{window}"
+  aggregate:      "| stats count() by {group_by}"
+  sort_desc:      "| sort @timestamp desc"

@@ -1,0 +1,238 @@
+# IOC Context Pattern Library
+# Used by extract_iocs.py to label each IOC with a context classification
+# before deciding whether to include it in the malicious IOC set.
+#
+# Label hierarchy (highest wins):
+#   MALICIOUS > INFRASTRUCTURE > UNKNOWN > VICTIM > RESEARCHER > EXAMPLE > FILTERED
+#
+# Patterns are matched against the sentence containing the IOC.
+# {ioc} is a placeholder that matches the actual IOC value in the sentence.
+# All matches are case-insensitive.
+
+malicious:
+  # Direct C2 / payload hosting evidence
+  - pattern: "c2"
+    weight: 1.0
+  - pattern: "command.and.control"
+    weight: 1.0
+  - pattern: "beacon"
+    weight: 0.9
+  - pattern: "beaconed"
+    weight: 0.95
+  - pattern: "callback"
+    weight: 0.9
+  - pattern: "called back"
+    weight: 0.9
+  - pattern: "reached out"
+    weight: 0.7
+  - pattern: "contacted"
+    weight: 0.7
+  - pattern: "communicated with"
+    weight: 0.8
+  - pattern: "exfil"
+    weight: 0.95
+  - pattern: "data.*sent.*to"
+    weight: 0.9
+  - pattern: "upload.*to"
+    weight: 0.75
+  - pattern: "dropper"
+    weight: 0.95
+  - pattern: "malware"
+    weight: 0.9
+  - pattern: "malicious"
+    weight: 0.85
+  - pattern: "payload"
+    weight: 0.9
+  - pattern: "implant"
+    weight: 0.95
+  - pattern: "backdoor"
+    weight: 0.95
+  - pattern: "stage.*download"
+    weight: 0.95
+  - pattern: "download.*stage"
+    weight: 0.95
+  - pattern: "retrieved.*from"
+    weight: 0.8
+  - pattern: "hosted.*at"
+    weight: 0.8
+  - pattern: "attacker"
+    weight: 0.85
+  - pattern: "threat actor"
+    weight: 0.85
+  - pattern: "adversary"
+    weight: 0.85
+  - pattern: "actor.*infrastructure"
+    weight: 0.95
+  - pattern: "used.*deliver"
+    weight: 0.85
+  - pattern: "used.*distribute"
+    weight: 0.85
+  - pattern: "observed.*executing"
+    weight: 0.9
+  - pattern: "executed.*from"
+    weight: 0.85
+  - pattern: "injected"
+    weight: 0.85
+  - pattern: "spawned"
+    weight: 0.75
+  - pattern: "persistence"
+    weight: 0.8
+  - pattern: "lateral.?movement"
+    weight: 0.8
+  - pattern: "privilege.?escalation"
+    weight: 0.8
+
+infrastructure:
+  # Actor infrastructure (C2, staging, relay) — malicious but not yet confirmed
+  - pattern: "infrastructure"
+    weight: 0.8
+  - pattern: "registered.*domain"
+    weight: 0.75
+  - pattern: "domain.*registered"
+    weight: 0.75
+  - pattern: "resolv"
+    weight: 0.7
+  - pattern: "DNS.*resolv"
+    weight: 0.75
+  - pattern: "host.*IP"
+    weight: 0.6
+  - pattern: "IP.*host"
+    weight: 0.6
+  - pattern: "staging"
+    weight: 0.75
+  - pattern: "relay"
+    weight: 0.7
+  - pattern: "proxy.*server"
+    weight: 0.7
+  - pattern: "bulletproof"
+    weight: 0.95
+  - pattern: "VPS"
+    weight: 0.5
+  - pattern: "Tor"
+    weight: 0.7
+
+victim:
+  # IOC belongs to victim, not attacker
+  - pattern: "victim"
+    weight: -1.0
+  - pattern: "target.*machine"
+    weight: -1.0
+  - pattern: "target.*system"
+    weight: -0.9
+  - pattern: "compromised.*host"
+    weight: -0.8
+  - pattern: "infected.*machine"
+    weight: -0.8
+  - pattern: "our.*network"
+    weight: -1.0
+  - pattern: "internal.*IP"
+    weight: -0.9
+  - pattern: "employee.*workstation"
+    weight: -1.0
+  - pattern: "gateway"
+    weight: -0.8
+  - pattern: "router"
+    weight: -0.7
+  - pattern: "was.*compromised"
+    weight: -0.9
+  - pattern: "affected.*system"
+    weight: -0.8
+
+researcher:
+  # Sandbox / analysis infrastructure
+  - pattern: "sandbox"
+    weight: -1.0
+  - pattern: "analysis.*environment"
+    weight: -1.0
+  - pattern: "test.*environment"
+    weight: -1.0
+  - pattern: "our.*sensor"
+    weight: -0.9
+  - pattern: "honeypot"
+    weight: -1.0
+  - pattern: "sinkhole"
+    weight: -0.9
+  - pattern: "detonation"
+    weight: -0.8
+  - pattern: "researcher"
+    weight: -0.8
+  - pattern: "analyst"
+    weight: -0.6
+
+example:
+  # Documentation / placeholder IOCs
+  - pattern: "example\\.com"
+    weight: -1.0
+  - pattern: "for example"
+    weight: -0.9
+  - pattern: "such as"
+    weight: -0.5
+  - pattern: "e\\.g\\."
+    weight: -0.8
+  - pattern: "placeholder"
+    weight: -1.0
+  - pattern: "dummy"
+    weight: -1.0
+  - pattern: "test\\.com"
+    weight: -1.0
+  - pattern: "localhost"
+    weight: -1.0
+
+# Always-filtered patterns — regardless of context
+always_filtered:
+  # RFC 1918 / loopback / link-local IPs — never malicious IOCs
+  ip_ranges:
+    - "^10\\."
+    - "^192\\.168\\."
+    - "^172\\.(1[6-9]|2[0-9]|3[01])\\."
+    - "^127\\."
+    - "^169\\.254\\."
+    - "^0\\.0\\.0\\.0$"
+    - "^255\\.255\\.255\\.255$"
+
+  # macOS bundle identifier pattern (reverse-DNS, 3+ components, known prefixes)
+  domain_patterns:
+    - "^com\\.(apple|google|microsoft|adobe|amazon)\\."
+    - "^org\\.(chromium|mozilla|webkit)\\."
+    - "^io\\.(k8s|kubernetes|docker)\\."
+    - "^[a-z]+\\.[a-z]+\\.[a-z]+\\.[a-z]+"  # 4+ label reverse-DNS bundle IDs
+
+  # Version strings that match IP regex
+  version_patterns:
+    - "\\d+\\.\\d+\\.\\d+\\.\\d+"  # caught by context — if word before is "version" or "v"
+
+  # Known benign domains — CDN, analytics, Microsoft, Google infrastructure
+  known_benign_domains:
+    - "windows.com"
+    - "microsoft.com"
+    - "windowsupdate.com"
+    - "office.com"
+    - "live.com"
+    - "azure.com"
+    - "azureedge.net"
+    - "amazonaws.com"
+    - "cloudfront.net"
+    - "akamaihd.net"
+    - "akamai.net"
+    - "fastly.net"
+    - "google.com"
+    - "googleapis.com"
+    - "gstatic.com"
+    - "apple.com"
+    - "icloud.com"
+    - "github.com"
+    - "githubusercontent.com"
+    - "githubusercontent.com"
+    - "pypi.org"
+    - "npmjs.com"
+    - "pkg.go.dev"
+    - "example.com"
+    - "example.org"
+    - "test.com"
+    - "localhost"
+
+# Default confidence when no context is found
+default_confidence: 0.5
+
+# Minimum confidence to include IOC in output
+include_threshold: 0.35

@@ -1,0 +1,138 @@
+id: splunk
+name: Splunk Enterprise / Splunk Cloud (SPL)
+version: "2024-Q4"
+description: >
+  Field mappings for Splunk using the Common Information Model (CIM).
+  Assumes Sysmon TA, Windows TA, and standard network TAs are installed.
+
+tables:
+  process_events:
+    index: sysmon
+    sourcetype: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+    event_id: "1"
+    fields:
+      timestamp:       _time
+      host:            ComputerName
+      user:            User
+      process_name:    Image
+      process_cmdline: CommandLine
+      process_id:      ProcessId
+      process_hash:    Hashes
+      parent_name:     ParentImage
+      parent_cmdline:  ParentCommandLine
+      parent_id:       ParentProcessId
+    base_search: "index=sysmon EventCode=1"
+
+  process_events_winevent:
+    index: wineventlog
+    event_id: "4688"
+    fields:
+      timestamp:    _time
+      host:         ComputerName
+      user:         SubjectUserName
+      process_name: NewProcessName
+      process_cmdline: CommandLine
+      parent_name:  ParentProcessName
+    base_search: "index=wineventlog EventCode=4688"
+
+  network_events:
+    index: sysmon
+    event_id: "3"
+    fields:
+      timestamp:    _time
+      host:         ComputerName
+      user:         User
+      dst_ip:       DestinationIp
+      dst_domain:   DestinationHostname
+      dst_port:     DestinationPort
+      src_ip:       SourceIp
+      src_port:     SourcePort
+      process_name: Image
+      protocol:     Protocol
+    base_search: "index=sysmon EventCode=3"
+
+  proxy_logs:
+    index: proxy
+    fields:
+      timestamp:    _time
+      src_ip:       src_ip
+      dst_host:     dest_host
+      dst_ip:       dest_ip
+      dst_port:     dest_port
+      url:          url
+      method:       cs_method
+      bytes_out:    bytes_out
+      bytes_in:     bytes_in
+      user_agent:   http_user_agent
+      status:       status
+    base_search: "index=proxy"
+
+  dns_logs:
+    index: dns
+    fields:
+      timestamp:    _time
+      src_ip:       src_ip
+      query:        query
+      query_type:   query_type
+      answer:       answer
+    base_search: "index=dns"
+
+  file_events:
+    index: sysmon
+    event_id: "11"
+    fields:
+      timestamp:    _time
+      host:         ComputerName
+      file_path:    TargetFilename
+      process_name: Image
+    base_search: "index=sysmon EventCode=11"
+
+  registry_events:
+    index: sysmon
+    event_id: "13"
+    fields:
+      timestamp:    _time
+      host:         ComputerName
+      reg_key:      TargetObject
+      reg_value:    Details
+      process_name: Image
+    base_search: "index=sysmon EventCode=13"
+
+  security_events:
+    index: wineventlog
+    fields:
+      timestamp:    _time
+      host:         ComputerName
+      user:         Account_Name
+      event_id:     EventCode
+      logon_type:   Logon_Type
+      src_ip:       src_ip
+    base_search: "index=wineventlog"
+
+  github_audit:
+    index: github_audit
+    fields:
+      timestamp:    _time
+      actor:        actor
+      action:       action
+      repo:         repo
+      outcome:      outcome
+      src_ip:       actor_ip
+    base_search: "index=github_audit"
+
+syntax:
+  single_value:   "{field}=\"{value}\""
+  not_equal:      "{field}!=\"{value}\""
+  contains:       "{field}=\"*{value}*\""
+  not_contains:   "NOT {field}=\"*{value}*\""
+  starts_with:    "{field}=\"{value}*\""
+  ends_with:      "{field}=\"*{value}\""
+  multi_value_eq: "{field} IN ({values})"
+  multi_contains: "({field}=\"*{v1}*\" OR {field}=\"*{v2}*\")"
+  regex:          "rex field={field} \"{value}\""
+  time_window:    "earliest=-{window}"
+  aggregate:      "| stats {func}({field}) by {group_by}"
+  join:           "| join {key} [{subquery}]"
+  sort_desc:      "| sort -{field}"
+  table:          "| table {fields}"
+  limit:          "| head {n}"
