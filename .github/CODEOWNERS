@@ -1,5 +1,3 @@
-* @harshdthakur6293
-.github/workflows/* @harshdthakur6293
-src/threat_research_mcp/orchestrator/* @harshdthakur6293
-src/threat_research_mcp/integrations/* @harshdthakur6293
-SECURITY.md @harshdthakur6293
+# All files require review from the repo owner before merging.
+# Community PRs are welcome — but @harshthakur6293 must approve before merge.
+* @harshthakur6293
