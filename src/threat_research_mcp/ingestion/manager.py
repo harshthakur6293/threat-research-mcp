@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -11,9 +13,56 @@ from threat_research_mcp.ingestion.normalizer import normalize_batch
 from threat_research_mcp.ingestion.registry import get_adapter
 from threat_research_mcp.schemas.intel_document import NormalizedDocument, SourceConfig
 
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SourceResult:
+    """Outcome for a single source after a run."""
+
+    name: str
+    status: str  # "ok" | "error"
+    count: int = 0
+    error: str = ""
+
+
+@dataclass
+class RunResult:
+    """Aggregate outcome of IngestionManager.run()."""
+
+    documents: List[NormalizedDocument] = field(default_factory=list)
+    source_results: List[SourceResult] = field(default_factory=list)
+
+    @property
+    def count(self) -> int:
+        return len(self.documents)
+
+    @property
+    def errors(self) -> List[str]:
+        return [r.error for r in self.source_results if r.status == "error"]
+
+    def to_dict(self) -> dict:
+        return {
+            "count": self.count,
+            "source_results": [
+                {
+                    "name": r.name,
+                    "status": r.status,
+                    "count": r.count,
+                    **({"error": r.error} if r.error else {}),
+                }
+                for r in self.source_results
+            ],
+            "errors": self.errors,
+        }
+
 
 class IngestionManager:
-    """Run all configured sources through adapters, normalizer, and deduper."""
+    """Run all configured sources through adapters, normalizer, and deduper.
+
+    One failing source does NOT abort the run — partial results are returned
+    and the failure is recorded in RunResult.source_results.
+    """
 
     def __init__(
         self,
@@ -23,17 +72,27 @@ class IngestionManager:
         self.sources = sources
         self.deduper = deduper or Deduper()
 
-    def run(self, skip_duplicates: bool = True) -> List[NormalizedDocument]:
-        normalized: List[NormalizedDocument] = []
+    def run(self, skip_duplicates: bool = True) -> RunResult:
+        result = RunResult()
         for cfg in self.sources:
-            adapter = get_adapter(cfg.type)
-            raw_docs = adapter.collect_raw(cfg)
-            normalized.extend(normalize_batch(raw_docs, cfg))
-        if skip_duplicates:
-            return self.deduper.filter_new(normalized)
-        return normalized
+            try:
+                adapter = get_adapter(cfg.type)
+                raw_docs = adapter.collect_raw(cfg)
+                batch = normalize_batch(raw_docs, cfg)
+                result.documents.extend(batch)
+                result.source_results.append(
+                    SourceResult(name=cfg.name, status="ok", count=len(batch))
+                )
+            except Exception as exc:
+                msg = str(exc)
+                logger.warning("Ingestion source %r failed: %s", cfg.name, msg)
+                result.source_results.append(SourceResult(name=cfg.name, status="error", error=msg))
 
-    def run_source(self, name: str, skip_duplicates: bool = True) -> List[NormalizedDocument]:
+        if skip_duplicates:
+            result.documents = self.deduper.filter_new(result.documents)
+        return result
+
+    def run_source(self, name: str, skip_duplicates: bool = True) -> RunResult:
         matches = [s for s in self.sources if s.name == name]
         if not matches:
             raise IngestionError(f"No source named '{name}'")
