@@ -314,5 +314,80 @@ class TestEQLValidator:
         assert any("risk_score" in issue for issue in issues)
 
 
+class TestSqlDetection:
+    """Tests for generate_sql_detection — security data lake SQL queries."""
+
+    def test_known_technique_returns_rules(self):
+        import json
+        from threat_research_mcp.tools.generate_detections import generate_sql_detection
+
+        result = json.loads(generate_sql_detection("T1059.001"))
+        assert result["technique_id"] == "T1059.001"
+        assert result["technique_name"] == "PowerShell Execution"
+        assert "SQL" in result["platform"]
+        assert len(result["rules"]) > 0
+
+    def test_rule_has_required_fields(self):
+        import json
+        from threat_research_mcp.tools.generate_detections import generate_sql_detection
+
+        result = json.loads(generate_sql_detection("T1059.001"))
+        for rule in result["rules"]:
+            assert "query" in rule
+            assert "log_source_key" in rule
+            assert "hypothesis" in rule
+            assert "SELECT" in rule["query"].upper()
+
+    def test_sql_contains_from_clause(self):
+        import json
+        from threat_research_mcp.tools.generate_detections import generate_sql_detection
+
+        result = json.loads(generate_sql_detection("T1003.001"))
+        for rule in result["rules"]:
+            assert "FROM" in rule["query"].upper()
+
+    def test_unknown_technique_returns_empty_rules(self):
+        import json
+        from threat_research_mcp.tools.generate_detections import generate_sql_detection
+
+        result = json.loads(generate_sql_detection("T9999.999"))
+        assert result["rules"] == []
+        assert "note" in result
+
+    def test_multiple_techniques_have_sql(self):
+        import json
+        from threat_research_mcp.tools.generate_detections import generate_sql_detection
+
+        for tid in ("T1071.001", "T1110.003", "T1486", "T1190"):
+            result = json.loads(generate_sql_detection(tid))
+            assert len(result["rules"]) > 0, f"Expected SQL rules for {tid}"
+
+    def test_sql_queries_in_hunt_hypothesis(self):
+        import json
+        from threat_research_mcp.tools.generate_hunt_hypothesis import (
+            generate_hunt_hypotheses_for_techniques,
+        )
+
+        result = json.loads(generate_hunt_hypotheses_for_techniques(["T1059.001"]))
+        hypotheses = result["hypotheses"]
+        assert len(hypotheses) > 0
+        # At least one hypothesis should have a SQL query
+        sql_covered = [h for h in hypotheses if h["queries"].get("sql")]
+        assert len(sql_covered) > 0
+
+    def test_hypothesis_queries_have_four_keys(self):
+        import json
+        from threat_research_mcp.tools.generate_hunt_hypothesis import (
+            generate_hunt_hypotheses_for_techniques,
+        )
+
+        result = json.loads(generate_hunt_hypotheses_for_techniques(["T1071.001"]))
+        for h in result["hypotheses"]:
+            assert "splunk" in h["queries"]
+            assert "kql" in h["queries"]
+            assert "elastic" in h["queries"]
+            assert "sql" in h["queries"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

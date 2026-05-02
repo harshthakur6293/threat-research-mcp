@@ -603,10 +603,13 @@ function showHypotheses(tids){{
         <button class="q-tab on" onclick="swTab('${{uid}}','splunk',this)">Splunk SPL</button>
         <button class="q-tab" onclick="swTab('${{uid}}','kql',this)">Sentinel KQL</button>
         <button class="q-tab" onclick="swTab('${{uid}}','elastic',this)">Elastic EQL</button>
+        ${{h.queries?.sql?`<button class="q-tab" onclick="swTab('${{uid}}','sql',this)">SQL</button>`:''}}
       </div>
       <pre class="q-block" id="${{uid}}-splunk">${{esc(h.queries?.splunk||'—')}}</pre>
       <pre class="q-block hide" id="${{uid}}-kql">${{esc(h.queries?.kql||'—')}}</pre>
-      <pre class="q-block hide" id="${{uid}}-elastic">${{esc(h.queries?.elastic||'—')}}</pre>`;
+      <pre class="q-block hide" id="${{uid}}-elastic">${{esc(h.queries?.elastic||'—')}}</pre>
+      ${{h.queries?.sql?`<pre class="q-block hide" id="${{uid}}-sql">${{esc(h.queries.sql)}}</pre>`:''}}
+      `;
     hypsWrap.appendChild(card);
   }});
 }}
@@ -616,7 +619,7 @@ if(allHyps.length){{showHypotheses([]);$('hyp-tech-label').textContent='';}}
 else $('hyp-empty').style.display='block';
 
 window.swTab=function(uid,tab,btn){{
-  ['splunk','kql','elastic'].forEach(t=>{{
+  ['splunk','kql','elastic','sql'].forEach(t=>{{
     const e=document.getElementById(uid+'-'+t);if(e)e.classList.toggle('hide',t!==tab);
   }});
   btn.closest('.hyp-card').querySelectorAll('.q-tab').forEach(b=>b.classList.remove('on'));
