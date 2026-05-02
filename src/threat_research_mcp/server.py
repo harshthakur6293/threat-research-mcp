@@ -35,9 +35,10 @@ from threat_research_mcp.tools.intel_storage_tools import (
 )
 from threat_research_mcp.enrichment.enrich import enrich_ioc, enrich_iocs_bulk
 from threat_research_mcp.tools.generate_detections import (
-    generate_kql_detection,
-    generate_spl_detection,
     generate_eql_detection,
+    generate_kql_detection,
+    generate_sql_detection,
+    generate_spl_detection,
     generate_yara_for_technique,
     generate_yara_rule,
     list_log_sources,
@@ -432,6 +433,22 @@ if FastMCP:
         Returns: JSON with siem=Elastic, technique metadata, and per-log-source rules.
         """
         return generate_eql_detection(technique_id)
+
+    @mcp.tool()
+    def sql_detection(technique_id: str) -> str:
+        """Generate SQL detection queries for a specific ATT&CK technique.
+
+        Targets a generic security data-lake schema compatible with Snowflake,
+        Google BigQuery, AWS Athena, and Databricks Delta Lake. Each query
+        targets a standard table (process_events, auth_events, network_events,
+        dns_events, file_events, cloud_trail, k8s_audit, etc.) and is ready
+        to paste into a data-lake SQL editor or notebook.
+
+        Covers all techniques in the hunt playbook with SQL templates.
+
+        Returns: JSON with platform, technique metadata, and rules with query + table_hint.
+        """
+        return generate_sql_detection(technique_id)
 
     # ── YARA Generators ───────────────────────────────────────────────────────
 

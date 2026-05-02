@@ -710,6 +710,504 @@ _PLAYBOOK: dict[str, dict[str, Any]] = {
     },
 }
 
+# ── SQL queries (security data lake — Snowflake / BigQuery / AWS Athena / Databricks)
+# Keyed by (technique_id, log_source_key). Standard tables assumed:
+#   process_events(event_time, hostname, username, process_name, cmdline, parent_name)
+#   auth_events(event_time, hostname, username, src_ip, logon_type, event_code, result)
+#   network_events(event_time, src_ip, dst_ip, dst_port, method, host, bytes_out, action)
+#   dns_events(event_time, src_ip, query, query_type)
+#   file_events(event_time, hostname, process_name, file_path, file_name, file_ext)
+#   registry_events(event_time, hostname, process_name, reg_path, reg_value)
+#   script_block(event_time, hostname, username, script_text)
+#   web_logs(event_time, src_ip, method, uri_stem, uri_query, status_code)
+#   email_events(event_time, sender, recipient, subject, attachment_ext)
+#   cloud_trail(event_time, principal_arn, action, resource, src_ip, region, user_agent, error_code)
+#   k8s_audit(event_time, username, verb, resource, namespace, name, subresource)
+#   container_events(event_time, host, container_id, image, action, cmdline)
+_SQL_QUERIES: dict[tuple[str, str], str] = {
+    ("T1059.001", "script_block_logging"): (
+        "SELECT event_time, hostname, username, script_text\n"
+        "FROM script_block\n"
+        "WHERE (LOWER(script_text) LIKE '%encodedcommand%'\n"
+        "   OR  LOWER(script_text) LIKE '%iex(%'\n"
+        "   OR  LOWER(script_text) LIKE '%downloadstring%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1059.001", "sysmon_process"): (
+        "SELECT event_time, hostname, parent_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) = 'powershell.exe'\n"
+        "  AND (LOWER(cmdline) LIKE '%-enc%'\n"
+        "   OR  LOWER(cmdline) LIKE '%-w hidden%'\n"
+        "   OR  LOWER(cmdline) LIKE '%-nop%'\n"
+        "   OR  LOWER(parent_name) IN ('winword.exe','excel.exe','outlook.exe'))\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1059.003", "sysmon_process"): (
+        "SELECT event_time, hostname, parent_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) = 'cmd.exe'\n"
+        "  AND LOWER(cmdline) LIKE '%/c%'\n"
+        "  AND LOWER(parent_name) NOT LIKE '%explorer.exe%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1003.001", "sysmon_process_access"): (
+        "SELECT event_time, hostname, process_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(cmdline) LIKE '%lsass%'\n"
+        "  AND LOWER(process_name) NOT IN ('svchost.exe','wininit.exe','csrss.exe')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1003.001", "windows_defender"): (
+        "SELECT event_time, hostname, process_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) IN ('mimikatz.exe','procdump.exe','procdump64.exe')\n"
+        "   OR (LOWER(cmdline) LIKE '%comsvcs%' AND LOWER(cmdline) LIKE '%minidump%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1071.001", "proxy_logs"): (
+        "SELECT src_ip, host, COUNT(*) AS requests,\n"
+        "       COUNT(DISTINCT method) AS unique_methods,\n"
+        "       MAX(event_time) - MIN(event_time) AS duration_secs\n"
+        "FROM network_events\n"
+        "WHERE method IN ('GET','POST') AND dst_port IN (80, 443)\n"
+        "GROUP BY src_ip, host\n"
+        "HAVING requests > 20 AND unique_methods < 3\n"
+        "   AND DATEDIFF('second', MIN(event_time), MAX(event_time)) > 3600\n"
+        "ORDER BY requests DESC LIMIT 100"
+    ),
+    ("T1071.001", "dns_logs"): (
+        "SELECT src_ip, query, COUNT(*) AS hits\n"
+        "FROM dns_events\n"
+        "WHERE query_type = 'A'\n"
+        "GROUP BY src_ip, query\n"
+        "HAVING hits > 50\n"
+        "ORDER BY hits DESC LIMIT 200"
+    ),
+    ("T1071.004", "dns_logs"): (
+        "SELECT src_ip, query, LENGTH(query) AS qlen\n"
+        "FROM dns_events\n"
+        "WHERE LENGTH(query) > 50\n"
+        "ORDER BY qlen DESC LIMIT 200"
+    ),
+    ("T1053.005", "windows_event_4698"): (
+        "SELECT event_time, hostname, username, cmdline\n"
+        "FROM process_events\n"
+        "WHERE event_code = '4698'\n"
+        "  AND (LOWER(cmdline) LIKE '%temp%' OR LOWER(cmdline) LIKE '%appdata%'\n"
+        "   OR  LOWER(cmdline) LIKE '%encodedcommand%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1053.005", "sysmon_process"): (
+        "SELECT event_time, hostname, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) IN ('schtasks.exe','at.exe')\n"
+        "  AND LOWER(cmdline) LIKE '%/create%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1547.001", "sysmon_registry"): (
+        "SELECT event_time, hostname, process_name, reg_path, reg_value\n"
+        "FROM registry_events\n"
+        "WHERE LOWER(reg_path) LIKE '%currentversion\\\\run%'\n"
+        "  AND LOWER(reg_value) NOT LIKE '%program files%'\n"
+        "  AND LOWER(reg_value) NOT LIKE '%windows%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1543.003", "windows_event_7045"): (
+        "SELECT event_time, hostname, username, cmdline\n"
+        "FROM process_events\n"
+        "WHERE event_code = '7045'\n"
+        "  AND (LOWER(cmdline) LIKE '%temp%' OR LOWER(cmdline) LIKE '%appdata%'\n"
+        "   OR  LOWER(cmdline) LIKE '%powershell%' OR LOWER(cmdline) LIKE '%cmd.exe%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1505.003", "web_server_logs"): (
+        "SELECT src_ip, uri_stem, COUNT(*) AS posts\n"
+        "FROM web_logs\n"
+        "WHERE LOWER(method) = 'post'\n"
+        "  AND (LOWER(uri_stem) LIKE '%.aspx' OR LOWER(uri_stem) LIKE '%.php'\n"
+        "   OR  LOWER(uri_stem) LIKE '%.jsp')\n"
+        "  AND LOWER(uri_stem) NOT LIKE '%login%' AND LOWER(uri_stem) NOT LIKE '%api%'\n"
+        "GROUP BY src_ip, uri_stem HAVING posts > 5\n"
+        "ORDER BY posts DESC LIMIT 100"
+    ),
+    ("T1566.001", "email_gateway"): (
+        "SELECT sender, recipient, subject, COUNT(*) AS emails\n"
+        "FROM email_events\n"
+        "WHERE LOWER(attachment_ext) IN ('.xlsm','.docm','.zip','.7z','.xls')\n"
+        "GROUP BY sender, recipient, subject\n"
+        "HAVING emails = 1\n"
+        "ORDER BY MAX(event_time) DESC LIMIT 200"
+    ),
+    ("T1566.001", "sysmon_process"): (
+        "SELECT event_time, hostname, parent_name, process_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(parent_name) IN ('winword.exe','excel.exe','outlook.exe','powerpnt.exe')\n"
+        "  AND LOWER(process_name) NOT IN ('splwow64.exe','werfault.exe')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1021.001", "windows_event_4624"): (
+        "SELECT src_ip, username, hostname, COUNT(*) AS sessions\n"
+        "FROM auth_events\n"
+        "WHERE event_code = '4624' AND logon_type = '10'\n"
+        "GROUP BY src_ip, username, hostname\n"
+        "HAVING sessions > 1\n"
+        "ORDER BY sessions DESC LIMIT 200"
+    ),
+    ("T1021.002", "windows_event_4624"): (
+        "SELECT username, src_ip, COUNT(DISTINCT hostname) AS host_count\n"
+        "FROM auth_events\n"
+        "WHERE event_code = '4624' AND logon_type = '3'\n"
+        "  AND username NOT LIKE '%$'\n"
+        "GROUP BY username, src_ip\n"
+        "HAVING host_count > 3\n"
+        "ORDER BY host_count DESC LIMIT 200"
+    ),
+    ("T1078", "windows_event_4624"): (
+        "SELECT username, src_ip, hostname,\n"
+        "       EXTRACT(HOUR FROM event_time) AS login_hour\n"
+        "FROM auth_events\n"
+        "WHERE event_code = '4624'\n"
+        "  AND (EXTRACT(HOUR FROM event_time) < 7\n"
+        "   OR  EXTRACT(HOUR FROM event_time) > 20)\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1110.003", "windows_event_4625"): (
+        "SELECT src_ip, COUNT(DISTINCT username) AS distinct_users,\n"
+        "       COUNT(*) AS failures\n"
+        "FROM auth_events\n"
+        "WHERE event_code = '4625'\n"
+        "GROUP BY src_ip\n"
+        "HAVING distinct_users > 10\n"
+        "ORDER BY distinct_users DESC LIMIT 100"
+    ),
+    ("T1055", "sysmon_create_remote_thread"): (
+        "SELECT event_time, hostname, process_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(cmdline) LIKE '%createremotethread%'\n"
+        "   OR LOWER(cmdline) LIKE '%virtualallocex%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1041", "proxy_logs"): (
+        "SELECT src_ip, host,\n"
+        "       ROUND(SUM(bytes_out) / 1024.0 / 1024.0, 2) AS total_mb\n"
+        "FROM network_events\n"
+        "WHERE LOWER(method) = 'post'\n"
+        "GROUP BY src_ip, host\n"
+        "HAVING SUM(bytes_out) > 10000000\n"
+        "ORDER BY total_mb DESC LIMIT 100"
+    ),
+    ("T1027", "script_block_logging"): (
+        "SELECT event_time, hostname, username, script_text\n"
+        "FROM script_block\n"
+        "WHERE LOWER(script_text) LIKE '%char(%'\n"
+        "   OR LOWER(script_text) LIKE '%-bxor%'\n"
+        "   OR LOWER(script_text) LIKE '%[convert]%'\n"
+        "   OR LOWER(script_text) LIKE '%concat(%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1046", "firewall_logs"): (
+        "SELECT src_ip,\n"
+        "       COUNT(DISTINCT dst_port) AS distinct_ports,\n"
+        "       COUNT(DISTINCT dst_ip) AS distinct_hosts\n"
+        "FROM network_events\n"
+        "WHERE action = 'deny'\n"
+        "GROUP BY src_ip\n"
+        "HAVING distinct_ports > 20 OR distinct_hosts > 20\n"
+        "ORDER BY distinct_ports DESC LIMIT 100"
+    ),
+    ("T1486", "sysmon_file"): (
+        "SELECT hostname, file_ext, COUNT(*) AS file_count\n"
+        "FROM file_events\n"
+        "WHERE LOWER(file_ext) IN ('encrypted','locked','crypt','ryk','maze')\n"
+        "   OR LOWER(file_name) LIKE '%readme%' OR LOWER(file_name) LIKE '%decrypt%'\n"
+        "   OR LOWER(file_name) LIKE '%ransom%'\n"
+        "GROUP BY hostname, file_ext\n"
+        "HAVING file_count > 10\n"
+        "ORDER BY file_count DESC LIMIT 100"
+    ),
+    ("T1558.003", "windows_event_4769"): (
+        "SELECT username, src_ip, COUNT(*) AS ticket_requests\n"
+        "FROM auth_events\n"
+        "WHERE event_code = '4769'\n"
+        "  AND LOWER(result) LIKE '%0x17%'\n"
+        "  AND username NOT LIKE '%$'\n"
+        "GROUP BY username, src_ip\n"
+        "ORDER BY ticket_requests DESC LIMIT 200"
+    ),
+    ("T1190", "web_server_logs"): (
+        "SELECT event_time, src_ip, uri_stem, uri_query\n"
+        "FROM web_logs\n"
+        "WHERE LOWER(uri_query) LIKE '%select %'\n"
+        "   OR LOWER(uri_query) LIKE '%union %'\n"
+        "   OR uri_query LIKE '%../%'\n"
+        "   OR LOWER(uri_query) LIKE '%;cmd%'\n"
+        "   OR LOWER(uri_query) LIKE '%exec(%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1195.001", "github_actions_audit"): (
+        "SELECT event_time, actor, resource AS repo, action\n"
+        "FROM cloud_trail\n"
+        "WHERE action IN ('package.publish','workflows.completed')\n"
+        "  AND error_code IS NULL\n"
+        "  AND src_ip IS NOT NULL\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1195.001", "aws_cloudtrail"): (
+        "SELECT event_time, principal_arn, action, resource, src_ip\n"
+        "FROM cloud_trail\n"
+        "WHERE action = 'StartBuild'\n"
+        "  AND resource LIKE '%codebuild%'\n"
+        "  AND error_code IS NULL\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1195.002", "github_actions_audit"): (
+        "SELECT event_time, actor, resource AS repo, action\n"
+        "FROM cloud_trail\n"
+        "WHERE action = 'workflows.run_attempt'\n"
+        "  AND region IN ('main','master')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1552.005", "aws_cloudtrail"): (
+        "SELECT event_time, principal_arn, src_ip, user_agent\n"
+        "FROM cloud_trail\n"
+        "WHERE action = 'GetSessionToken'\n"
+        "  AND LOWER(user_agent) SIMILAR TO '%(curl|wget|python|ruby|powershell)%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1552.005", "gcp_cloud_logging"): (
+        "SELECT event_time, principal_arn AS principal, resource, src_ip\n"
+        "FROM cloud_trail\n"
+        "WHERE resource LIKE '%computeMetadata%'\n"
+        "GROUP BY event_time, principal_arn, resource, src_ip\n"
+        "HAVING COUNT(*) > 100\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1552.005", "azure_activity_logs"): (
+        "SELECT event_time, principal_arn AS principal, resource, COUNT(*) AS token_requests\n"
+        "FROM cloud_trail\n"
+        "WHERE LOWER(action) LIKE '%retrieve%token%'\n"
+        "GROUP BY event_time, principal_arn, resource\n"
+        "HAVING token_requests > 50\n"
+        "ORDER BY token_requests DESC LIMIT 100"
+    ),
+    ("T1078.004", "aws_cloudtrail"): (
+        "SELECT event_time, principal_arn, action, src_ip, region\n"
+        "FROM cloud_trail\n"
+        "WHERE action IN ('AssumeRole','ConsoleLogin') AND error_code IS NULL\n"
+        "  AND src_ip NOT LIKE '10.%' AND src_ip NOT LIKE '172.1%'\n"
+        "  AND src_ip NOT LIKE '192.168.%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1078.004", "azure_activity_logs"): (
+        "SELECT event_time, principal_arn AS principal, src_ip, region AS location\n"
+        "FROM cloud_trail\n"
+        "WHERE action LIKE '%ServicePrincipal%SignIn%'\n"
+        "  AND error_code IS NULL\n"
+        "  AND src_ip NOT LIKE '10.%' AND src_ip NOT LIKE '192.168.%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1078.004", "gcp_cloud_logging"): (
+        "SELECT event_time, principal_arn AS service_account, src_ip\n"
+        "FROM cloud_trail\n"
+        "WHERE principal_arn LIKE '%serviceAccountKey%'\n"
+        "  AND src_ip NOT LIKE '10.%' AND src_ip NOT LIKE '35.%'\n"
+        "  AND src_ip NOT LIKE '34.%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1530", "aws_cloudtrail"): (
+        "SELECT principal_arn, resource AS bucket,\n"
+        "       COUNT(*) AS requests,\n"
+        "       COUNT(DISTINCT resource) AS objects\n"
+        "FROM cloud_trail\n"
+        "WHERE action = 'GetObject' AND resource LIKE '%s3%'\n"
+        "GROUP BY principal_arn, resource\n"
+        "HAVING requests > 100\n"
+        "ORDER BY requests DESC LIMIT 100"
+    ),
+    ("T1530", "gcp_cloud_logging"): (
+        "SELECT principal_arn AS principal, resource AS bucket, COUNT(*) AS downloads\n"
+        "FROM cloud_trail\n"
+        "WHERE action = 'storage.objects.get'\n"
+        "GROUP BY principal_arn, resource\n"
+        "HAVING downloads > 100\n"
+        "ORDER BY downloads DESC LIMIT 100"
+    ),
+    ("T1530", "azure_activity_logs"): (
+        "SELECT src_ip, resource AS storage_account,\n"
+        "       COUNT(*) AS blob_reads,\n"
+        "       COUNT(DISTINCT resource) AS unique_blobs\n"
+        "FROM cloud_trail\n"
+        "WHERE action = 'GetBlob'\n"
+        "GROUP BY src_ip, resource\n"
+        "HAVING blob_reads > 200\n"
+        "ORDER BY blob_reads DESC LIMIT 100"
+    ),
+    ("T1609", "k8s_audit"): (
+        "SELECT event_time, username, namespace, name, subresource\n"
+        "FROM k8s_audit\n"
+        "WHERE verb = 'create' AND resource = 'pods'\n"
+        "  AND subresource IN ('exec','attach')\n"
+        "  AND username NOT LIKE 'system:serviceaccount:kube-system%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1609", "docker_daemon"): (
+        "SELECT event_time, host, container_id, cmdline\n"
+        "FROM container_events\n"
+        "WHERE action = 'exec_create'\n"
+        "  AND (LOWER(cmdline) LIKE '%/bin/%' OR LOWER(cmdline) LIKE '%bash%'\n"
+        "   OR  LOWER(cmdline) LIKE '%sh%' OR LOWER(cmdline) LIKE '%powershell%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1610", "k8s_audit"): (
+        "SELECT event_time, username, namespace, name\n"
+        "FROM k8s_audit\n"
+        "WHERE verb = 'create'\n"
+        "  AND resource IN ('pods','daemonsets','deployments')\n"
+        "  AND (name LIKE '%privileged%' OR name LIKE '%hostpid%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1610", "aws_cloudtrail"): (
+        "SELECT event_time, principal_arn, action, resource\n"
+        "FROM cloud_trail\n"
+        "WHERE action IN ('RegisterTaskDefinition','RunTask')\n"
+        "  AND resource LIKE '%ecs%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1610", "docker_daemon"): (
+        "SELECT event_time, host, container_id, image, cmdline\n"
+        "FROM container_events\n"
+        "WHERE action = 'container_start'\n"
+        "  AND (LOWER(cmdline) LIKE '%privileged%' OR LOWER(cmdline) LIKE '%hostpid%'\n"
+        "   OR  LOWER(image) IN ('alpine','busybox','kalilinux'))\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1613", "k8s_audit"): (
+        "SELECT username, resource, namespace, COUNT(*) AS requests\n"
+        "FROM k8s_audit\n"
+        "WHERE verb IN ('list','watch')\n"
+        "  AND resource IN ('pods','secrets','clusterroles','nodes')\n"
+        "GROUP BY username, resource, namespace\n"
+        "HAVING requests > 50\n"
+        "ORDER BY requests DESC LIMIT 100"
+    ),
+    ("T1613", "docker_daemon"): (
+        "SELECT host, container_id, COUNT(*) AS list_calls\n"
+        "FROM container_events\n"
+        "WHERE action IN ('container_list','container_inspect')\n"
+        "GROUP BY host, container_id\n"
+        "HAVING list_calls > 20\n"
+        "ORDER BY list_calls DESC LIMIT 100"
+    ),
+    ("T1059.002", "macos_unified_log"): (
+        "SELECT event_time, hostname, username, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) = 'osascript'\n"
+        "  AND (LOWER(cmdline) LIKE '%-e%' OR LOWER(cmdline) LIKE '%curl%'\n"
+        "   OR  LOWER(cmdline) LIKE '%http%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1059.002", "edr_macos"): (
+        "SELECT event_time, hostname, process_name, parent_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(parent_name) IN ('script editor','osascript')\n"
+        "  AND LOWER(process_name) IN ('curl','python','python3','bash','sh')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1543.001", "macos_unified_log"): (
+        "SELECT event_time, hostname, process_name, file_path\n"
+        "FROM file_events\n"
+        "WHERE (LOWER(file_path) LIKE '%/library/launchdaemons/%'\n"
+        "   OR  LOWER(file_path) LIKE '%/library/launchagents/%')\n"
+        "  AND LOWER(file_path) NOT LIKE '%apple%'\n"
+        "  AND LOWER(file_path) NOT LIKE '%microsoft%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1543.001", "edr_macos"): (
+        "SELECT event_time, hostname, username, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) = 'launchctl'\n"
+        "  AND LOWER(cmdline) LIKE '%load%'\n"
+        "  AND LOWER(cmdline) NOT LIKE '%/system/library/%'\n"
+        "  AND LOWER(cmdline) NOT LIKE '%/usr/libexec/%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1548.006", "macos_unified_log"): (
+        "SELECT event_time, hostname, process_name, file_path\n"
+        "FROM file_events\n"
+        "WHERE LOWER(process_name) = 'sqlite3' AND LOWER(file_path) LIKE '%tcc.db%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1548.006", "edr_macos"): (
+        "SELECT event_time, hostname, process_name, parent_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) IN ('finder','systemuiserver')\n"
+        "  AND LOWER(parent_name) NOT IN ('loginwindow','launchd')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1555.003", "macos_unified_log"): (
+        "SELECT event_time, hostname, username, parent_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) = 'security'\n"
+        "  AND (LOWER(cmdline) LIKE '%find-generic-password%'\n"
+        "   OR  LOWER(cmdline) LIKE '%find-internet-password%')\n"
+        "  AND LOWER(parent_name) NOT IN ('safari','chrome','firefox','1password')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1555.003", "edr_macos"): (
+        "SELECT event_time, hostname, username, process_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) IN ('zip','tar','python3')\n"
+        "  AND LOWER(cmdline) LIKE '%application support%'\n"
+        "  AND (LOWER(cmdline) LIKE '%cookies%' OR LOWER(cmdline) LIKE '%login data%'\n"
+        "   OR  LOWER(cmdline) LIKE '%keychain%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1539", "edr_macos"): (
+        "SELECT event_time, hostname, username, process_name, file_path\n"
+        "FROM file_events\n"
+        "WHERE (LOWER(file_path) LIKE '%telegram%' OR LOWER(file_path) LIKE '%tdata%')\n"
+        "  AND LOWER(process_name) NOT IN ('telegram','electron')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1567.002", "proxy_logs"): (
+        "SELECT src_ip, user_agent,\n"
+        "       ROUND(SUM(bytes_out) / 1024.0, 2) AS total_kb,\n"
+        "       COUNT(*) AS requests\n"
+        "FROM network_events\n"
+        "WHERE LOWER(host) = 'api.telegram.org' AND LOWER(method) = 'post'\n"
+        "  AND bytes_out > 50000\n"
+        "  AND LOWER(user_agent) NOT LIKE '%telegramdesktop%'\n"
+        "GROUP BY src_ip, user_agent\n"
+        "ORDER BY total_kb DESC LIMIT 100"
+    ),
+    ("T1567.002", "edr_macos"): (
+        "SELECT event_time, hostname, username, process_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) IN ('curl','python3','python')\n"
+        "  AND LOWER(cmdline) LIKE '%api.telegram.org%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1204.002", "edr_macos"): (
+        "SELECT event_time, hostname, username, parent_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(parent_name) = 'script editor'\n"
+        "  AND LOWER(cmdline) LIKE '%.scpt%'\n"
+        "  AND LOWER(cmdline) NOT LIKE '%/applications/%'\n"
+        "  AND LOWER(cmdline) NOT LIKE '%/system/%'\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+    ("T1560.001", "edr_macos"): (
+        "SELECT event_time, hostname, username, process_name, cmdline\n"
+        "FROM process_events\n"
+        "WHERE LOWER(process_name) IN ('zip','tar','ditto')\n"
+        "  AND (LOWER(cmdline) LIKE '%documents%' OR LOWER(cmdline) LIKE '%downloads%'\n"
+        "   OR  LOWER(cmdline) LIKE '%.ssh%' OR LOWER(cmdline) LIKE '%application support%')\n"
+        "ORDER BY event_time DESC LIMIT 200"
+    ),
+}
+
+
 # Canonical log source tags → friendly names
 _LOG_SOURCE_LABELS: dict[str, str] = {
     # Windows / Sysmon
@@ -810,6 +1308,7 @@ def generate_hunt_hypotheses_for_techniques(
                         "splunk": src.get("splunk", ""),
                         "kql": src.get("kql", ""),
                         "elastic": src.get("elastic", ""),
+                        "sql": _SQL_QUERIES.get((tid, src_key), ""),
                     },
                     "sigma_logsource": src.get("sigma_logsource", ""),
                 }

@@ -14,7 +14,11 @@ import json
 import re
 from typing import Any
 
-from threat_research_mcp.tools.generate_hunt_hypothesis import _PLAYBOOK, _LOG_SOURCE_LABELS
+from threat_research_mcp.tools.generate_hunt_hypothesis import (
+    _LOG_SOURCE_LABELS,
+    _PLAYBOOK,
+    _SQL_QUERIES,
+)
 
 # ── Technique name lookup (shared across all generators) ──────────────────────
 
@@ -252,6 +256,80 @@ def generate_eql_detection(technique_id: str) -> str:
             "tactic": entry["tactic"],
             "siem": "Elastic Security (EQL/Lucene)",
             "rules": rules,
+        },
+        indent=2,
+    )
+
+
+# ── SQL (Security Data Lake — Snowflake / BigQuery / AWS Athena / Databricks) ─
+
+
+def generate_sql_detection(technique_id: str) -> str:
+    """Generate SQL detection queries for a specific ATT&CK technique.
+
+    Queries target a generic security data-lake schema compatible with
+    Snowflake, Google BigQuery, AWS Athena, and Databricks Delta Lake.
+    Standard tables: process_events, auth_events, network_events, dns_events,
+    file_events, registry_events, script_block, web_logs, email_events,
+    cloud_trail, k8s_audit, container_events.
+
+    Returns JSON: {technique_id, technique_name, tactic, platform, rules: [...]}
+    Each rule includes: log_source_key, log_source, hypothesis, query, table_hint.
+    """
+    tid = technique_id.strip().upper()
+    entry = _PLAYBOOK.get(tid)
+
+    if not entry:
+        return json.dumps(
+            {
+                "technique_id": tid,
+                "technique_name": tid,
+                "tactic": "unknown",
+                "platform": "SQL (Security Data Lake)",
+                "rules": [],
+                "note": (
+                    f"Technique {tid} not in playbook — no SQL template available. "
+                    "Use generate_kql_detection or generate_spl_detection for generic fallback rules."
+                ),
+            },
+            indent=2,
+        )
+
+    rules: list[dict[str, Any]] = []
+    for src_key, src in entry["log_sources"].items():
+        sql = _SQL_QUERIES.get((tid, src_key), "")
+        if not sql:
+            continue
+        # Extract table name from first line comment if present
+        first_line = sql.split("\n")[0]
+        table_hint = (
+            first_line.replace("-- table:", "").strip()
+            if first_line.startswith("-- table:")
+            else src_key.replace("_", " ").title()
+        )
+        rules.append(
+            {
+                "log_source_key": src_key,
+                "log_source": src["name"],
+                "hypothesis": src["hypothesis"],
+                "query": sql,
+                "table_hint": table_hint,
+            }
+        )
+
+    return json.dumps(
+        {
+            "technique_id": tid,
+            "technique_name": entry["name"],
+            "tactic": entry["tactic"],
+            "platform": "SQL (Security Data Lake — Snowflake / BigQuery / Athena / Databricks)",
+            "rules": rules,
+            "note": (
+                ""
+                if rules
+                else f"No SQL templates for {tid}. "
+                "Contribute at: github.com/harshthakur6293/threat-research-mcp"
+            ),
         },
         indent=2,
     )
