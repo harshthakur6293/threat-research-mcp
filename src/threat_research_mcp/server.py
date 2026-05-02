@@ -47,6 +47,10 @@ from threat_research_mcp.tools.parse_stix import parse_stix_bundle, stix_to_pipe
 from threat_research_mcp.tools.navigator_export import (
     navigator_layer_from_map_attack,
 )
+from threat_research_mcp.tools.attack_enrichment import (
+    enrich_techniques_json,
+    stix_status_json,
+)
 from threat_research_mcp.tools.score_sigma import (
     score_sigma_rule,
     score_sigma_from_technique,
@@ -821,6 +825,46 @@ if FastMCP:
             technique_id: ATT&CK technique ID, e.g. "T1059.001".
         """
         return get_mitigations(technique_id)
+
+    # ── MITRE ATT&CK STIX Enrichment (requires: python scripts/download_attack_stix.py) ──
+
+    @mcp.tool()
+    def stix_status() -> str:
+        """Check whether MITRE ATT&CK STIX enrichment is available.
+
+        Returns installation status for mitreattack-python and the
+        enterprise-attack.json STIX bundle.  Run this to diagnose why
+        enrich_techniques_stix is returning empty results.
+
+        Setup (one-time):
+            pip install "threat-research-mcp[attack]"
+            python scripts/download_attack_stix.py
+        """
+        return stix_status_json()
+
+    @mcp.tool()
+    def enrich_techniques_stix(technique_ids: str) -> str:
+        """Enrich ATT&CK technique IDs with official MITRE STIX data.
+
+        For each technique returns: full description, target platforms
+        (Windows / Linux / macOS / Cloud), ATT&CK data sources (what to log),
+        MITRE detection guidance, and the top 5 threat groups known to use it.
+
+        This pulls directly from the official MITRE CTI STIX bundle — the same
+        data that powers attack.mitre.org — so it is always authoritative and
+        version-stamped.
+
+        Pair with run_pipeline_tool: map techniques first, then pass the
+        technique_ids from the pipeline output into this tool for full detail.
+
+        Args:
+            technique_ids: Comma-separated ATT&CK IDs, e.g. "T1059.001,T1003.001,T1071".
+
+        Requires:
+            pip install "threat-research-mcp[attack]"
+            python scripts/download_attack_stix.py
+        """
+        return enrich_techniques_json(technique_ids)
 
 
 def main() -> None:
