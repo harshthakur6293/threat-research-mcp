@@ -229,14 +229,17 @@ def generate_html_report(
 
 
 def _render_html(data: dict) -> str:
-    data_json = json.dumps(data, ensure_ascii=False)
+    # Escape </ sequences so that threat intel payloads containing </script> or
+    # </style> cannot break out of the embedded JSON block.  <\/ is valid JS
+    # and browsers treat it identically to </ inside strings.
+    data_json = json.dumps(data, ensure_ascii=False).replace("</", r"<\/")
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{data["title"]}</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js" onerror="window._d3Failed=true"></script>
 <style>
 :root{{
   --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
@@ -653,6 +656,15 @@ window.toggleYaml=function(uid){{const e=document.getElementById(uid);if(e)e.sty
 
 // ── D3 Force Graph ────────────────────────────────────────────────────────────
 (function(){{
+  if(window._d3Failed||typeof d3==='undefined'){{
+    const svgEl=$('graph-svg');
+    svgEl.style.display='none';
+    const msg=document.createElement('div');
+    msg.style.cssText='padding:32px;text-align:center;color:#8b949e;font-size:.88rem;border:1px solid #30363d;border-radius:8px;background:#161b22';
+    msg.innerHTML='&#128200; Graph unavailable — D3.js could not be loaded (CDN blocked or offline).<br><span style="font-size:.78rem">Open this file in a browser with internet access, or run <code>npm i d3</code> and host locally.</span>';
+    svgEl.parentNode.insertBefore(msg,svgEl);
+    return;
+  }}
   const svgEl=$('graph-svg');
   const W=svgEl.clientWidth||1100,H=520;
   svgEl.setAttribute('viewBox',`0 0 ${{W}} ${{H}}`);
