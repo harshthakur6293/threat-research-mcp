@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
   "pydantic>=2.7.0",
   "PyYAML>=6.0.1",
-  "mcp>=1.8.0",
+  "mcp>=1.8.0,<2.0",
   "requests>=2.31.0",
 ]
 
@@ -73,8 +73,6 @@ omit = [
     # Feed ingestion — requires real TAXII/RSS/HTTP feeds to test
     "src/threat_research_mcp/ingestion/*",
     "src/threat_research_mcp/ingestion/adapters/*",
-    # Legacy hunt scaffolding — not exposed via MCP tools
-    "src/threat_research_mcp/hunt/*",
     # Data schema definitions — pure dataclasses, no logic to test
     "src/threat_research_mcp/schemas/*",
     # Storage — requires SQLite setup; covered by integration omit
@@ -95,16 +93,6 @@ omit = [
     "src/threat_research_mcp/enrichment/__init__.py",
     "src/threat_research_mcp/tools/map_data_sources.py",
     "src/threat_research_mcp/tools/generate_detection_ideas.py",
-    # Legacy detection scaffolding — not exposed via MCP tools
-    "src/threat_research_mcp/detection/cross_siem_drafts.py",
-    "src/threat_research_mcp/detection/rule_generator.py",
-    "src/threat_research_mcp/detection/rule_optimizer.py",
-    "src/threat_research_mcp/detection/rule_validator.py",
-    "src/threat_research_mcp/detection/logic_analyzer.py",
-    "src/threat_research_mcp/detection/detection_formatter.py",
-    "src/threat_research_mcp/detection/detection_inventory.py",
-    "src/threat_research_mcp/detection/log_source_mapper.py",
-    "src/threat_research_mcp/detection/query_generator.py",
 ]
 
 [tool.coverage.report]
