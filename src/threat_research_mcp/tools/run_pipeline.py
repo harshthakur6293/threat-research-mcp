@@ -91,11 +91,18 @@ def run_pipeline(
             result["ingestion"] = ingest_raw
             result["pipeline_stages"].append("feed_ingestion")
 
-            # Append document text to combined analysis text
+            # Append document text to combined analysis text.
+            # NormalizedDocument serialises body as normalized_text / raw_text;
+            # fall back through legacy field names for forward compatibility.
             docs = ingest_raw.get("documents", [])
             if docs:
                 doc_text = " ".join(
-                    d.get("content", "") or d.get("text", "") or d.get("title", "") for d in docs
+                    d.get("normalized_text")
+                    or d.get("raw_text")
+                    or d.get("content")
+                    or d.get("text")
+                    or d.get("title", "")
+                    for d in docs
                 )
                 combined_text = (combined_text + " " + doc_text).strip()
         except Exception as exc:
